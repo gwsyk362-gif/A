@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    # 数据库驱动类名
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 数据库连接 URL（serverTimezone 解决时区报错，useSSL 解决连接警告）
+    url: jdbc:mysql://localhost:3306/recommender?serverTimezone=GMT%2B8&useSSL=false
+    # 数据库用户名
+    username: root
+    # 数据库密码（
+    password: 03222090
+
+# MyBatis Plus 配置（让它能找到你之后要写的 SQL）
+mybatis-plus:
+  configuration:
+    # 开启驼峰命名转换（数据库 ques_id 自动对应 Java 的 quesId）
+    map-underscore-to-camel-case: true
+    # 打印 SQL 日志
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
