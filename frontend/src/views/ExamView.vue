@@ -5,7 +5,15 @@
     </div>
 
     <div v-for="(question, index) in questions" :key="question.quesId" class="question-card">
-      <div class="question-title">{{ index + 1 }}. {{ question.quesContent }}</div>
+      <div class="question-header">
+        <div class="question-title">
+          {{ index + 1 }}. {{ question.quesContent }}
+        </div>
+
+        <span v-if="question.knowledgePoint" class="knowledge-tag">
+    {{ question.knowledgePoint }}
+  </span>
+      </div>
 
       <div class="options-group">
         <div
@@ -31,6 +39,10 @@
       <div v-if="showResult" :class="['result-box', question.userAnswer === question.quesAnswer ? 'correct' : 'wrong']">
         <span v-if="question.userAnswer === question.quesAnswer">✓ 正确</span>
         <span v-else>✗ 错误。正确答案是：{{ question.quesAnswer }}</span>
+
+        <div class="knowledge-analysis">
+          <strong>考查内容：</strong>{{ question.quesKp || '基础题型' }}
+        </div>
       </div>
     </div>
 
@@ -57,14 +69,16 @@
   score.value = 0;
 }, { deep: false });
 
-  // 解析选项文本 (A.xxx B.xxx)
-  const formatOptions = (optionsStr) => {
-    if (!optionsStr) return [];
-    return optionsStr
-      .split(/(?=[A-D][\.．、\s])/)
-      .map(o => o.trim())
-      .filter(o => o.length > 0);
-  };
+  // 解析选项文本
+const formatOptions = (optionsStr) => {
+  if (!optionsStr) return [];
+
+  const cleanStr = optionsStr.replace(/\s+/g, ' ').trim() + " ";//去掉多余空格
+  const regex = /[A-D][\.．、\s][\s\S]*?(?=[A-D][\.．、\s]|$)/g;//正则表达式
+  const matches = cleanStr.match(regex);
+
+  return matches ? matches.map(o => o.trim()).filter(o => o.length > 2) : [];
+};
 
   // 获取选项字母 (A, B, C, D)
   const getOptionLetter = (optText) => {
@@ -78,7 +92,7 @@
     }
   };
 
-  // 提交判分
+  // 提交判断正误
   const submitPaper = () => {
     score.value = props.questions.filter(q => q.userAnswer === q.quesAnswer).length;
     showResult.value = true;
@@ -168,4 +182,41 @@ button {
 }
 .submit-btn { background: #27ae60; }
 .clear-btn { background: #7f8c8d; }
+
+  /* 关键：使用 Flex 布局让题干和标签左右分开 */
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start; /* 顶部对齐 */
+  gap: 15px; /* 间距 */
+  margin-bottom: 15px;
+}
+
+/* 覆盖原有样式，去掉 margin 确保对齐 */
+.question-title {
+  font-weight: 700;
+  font-size: 1.1em;
+  margin-bottom: 0;
+  flex: 1; /* 自动撑开，确保标签被推到最右侧 */
+}
+
+/* 蓝色小标签样式 */
+.knowledge-tag {
+  background: #eef4ff;
+  color: #3478e5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap; /* 强制不换行 */
+  border: 1px solid #d1e3fa;
+}
+
+/* 结果区下方的详细显示 */
+.knowledge-analysis {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0,0,0,0.05);
+  font-size: 0.9em;
+  font-weight: normal;
+}
 </style>
