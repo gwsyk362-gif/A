@@ -44,9 +44,8 @@
 <script setup>
   import { ref, defineProps, defineEmits, watch } from 'vue';
 
-  // 接收父组件传递过来的试卷数据
   const props = defineProps({
-  questions: Array // 这里的名字必须和 App.vue 中 :questions 一致
+  questions: Array
 });
 
   const showResult = ref(false);
@@ -54,7 +53,6 @@
   const emit = defineEmits(['reset']);
 
   watch(() => props.questions, () => {
-  // 当新试卷传进来时，重置所有内部状态
   showResult.value = false;
   score.value = 0;
 }, { deep: false });

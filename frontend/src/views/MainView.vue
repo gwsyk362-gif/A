@@ -1,12 +1,15 @@
-// MainView.vue (修改后的完整代码)
 <template>
   <div class="main-layout">
+
     <header class="nav-header">
       <div class="header-top">
-        <div class="user-avatar">
+        <div class="user-avatar" @click="activeTab = 'userCenter'" style="cursor: pointer;">
           <div class="avatar-placeholder"></div>
-          <span class="username-tip">{{ user?.nickname || '同学' }}</span>
+          <span class="username-tip" :class="{ 'active-text': activeTab === 'userCenter' }">
+            {{ user?.nickname || '同学' }}
+          </span>
         </div>
+
         <div class="search-bar-container">
           <div class="search-input-wrapper">
             <span class="search-icon">🔍</span>
@@ -16,7 +19,7 @@
         <div style="width: 60px;"></div>
       </div>
 
-      <nav class="category-nav">
+      <nav class="category-nav" v-if="activeTab !== 'userCenter'">
         <div
           v-for="tab in tabs"
           :key="tab.id"
@@ -30,29 +33,27 @@
       </nav>
     </header>
 
-    <main class="content has-header">
-      <div v-if="activeTab === 'resources'" class="view-section">
+    <main class="content" :class="{ 'has-header': true, 'center-mode': activeTab === 'userCenter' }">
+      <div v-if="activeTab === 'userCenter'" class="view-section">
+        <UserView :currentUser="user" @back="handleBackToHome" />
+      </div>
+
+      <div v-else-if="activeTab === 'resources'" class="view-section">
         <h3>📚 推荐学习资源</h3>
-        <!-- 替换原有的占位卡片为视频资源组件 -->
         <VideoResources :search-query="searchQuery" />
       </div>
 
-      <div v-if="activeTab === 'paper'" class="view-section">
+      <div v-else-if="activeTab === 'paper'" class="view-section">
         <GenerateView :currentUser="user" mode="paper" @paper-generated="handlePaperGenerated" />
         <hr v-if="currentPaper.length > 0" class="divider" />
         <ExamView v-if="currentPaper.length > 0" :questions="currentPaper" @reset="handleReset" />
       </div>
 
-      <div v-if="activeTab === 'practice'" class="view-section">
+      <div v-else-if="activeTab === 'practice'" class="view-section">
         <GenerateView :currentUser="user" mode="practice" @recommend-fetched="handleRecommendFetched" />
-
         <hr v-if="recommendedQuestions.length > 0" class="divider" />
-
         <div v-if="recommendedQuestions.length > 0" class="practice-list">
-          <ExamView
-            :questions="recommendedQuestions"
-            @reset="recommendedQuestions = []"
-          />
+          <ExamView :questions="recommendedQuestions" @reset="recommendedQuestions = []" />
         </div>
       </div>
     </main>
@@ -63,7 +64,8 @@
   import { ref, defineProps } from 'vue';
   import GenerateView from './GenerateView.vue';
   import ExamView from './ExamView.vue';
-  import VideoResources from './VideoResources.vue'; // 新增导入
+  import VideoResources from './VideoResources.vue';
+  import UserView from './UserView.vue';
 
   const props = defineProps({
     user: Object
@@ -79,6 +81,10 @@
     { id: 'paper', name: '做卷分区' },
     { id: 'practice', name: '做题分区' }
   ];
+
+  const handleBackToHome = () => {
+    activeTab.value = 'resources'; // 切换回学习资源首页
+  };
 
   const handlePaperGenerated = (data) => { currentPaper.value = data; };
   const handleRecommendFetched = (data) => { recommendedQuestions.value = data; };
@@ -262,4 +268,19 @@
     border: none;
     border-top: 1px solid #e3e5e7;
   }
+
+  .user-avatar {
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.user-avatar:hover {
+  background-color: #f1f2f3; /* 悬停时有个浅灰色背景 */
+}
+
+.user-avatar.is-active .username-tip {
+  color: #fb7299; /* 选中时文字变色 */
+}
 </style>

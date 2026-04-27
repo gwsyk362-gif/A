@@ -11,7 +11,7 @@ public class User {
     @TableId(value = "user_id", type = IdType.AUTO)
     private Integer userId;
 
-    private Long username;   // 8位数字账号
-    private String password; // 字符串密码
-    private String nickname; // 字符串昵称
+    private Long username;  //八位
+    private String password;
+    private String nickname;
 }
