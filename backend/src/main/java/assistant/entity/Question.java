@@ -22,11 +22,6 @@ public class Question {
 
     private String quesAnalysis;
 
-    private Integer quesType;
-
-    private BigDecimal quesDifficulty;
-
     private String quesKp;
-
-    private Integer quesScore;
+    
 }

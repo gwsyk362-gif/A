@@ -1,28 +1,45 @@
 import { createRouter, createWebHistory } from 'vue-router'
-
 import LoginView from '../views/LoginView.vue'
-import GenerateView from '../views/GenerateView.vue'
-import ExamView from '../views/ExamView.vue'
+import MainView from '../views/MainView.vue'
+import MainContent from '../views/MainContent.vue'
+
+const routes = [
+  { path: '/', redirect: '/login' },
+  {
+    path: '/login',
+    name: 'Login',
+    component: LoginView
+  },
+  {
+    path: '/main',
+    component: MainView,
+    children: [
+      {
+        path: '',
+        name: 'MainContent',
+        component: MainContent
+      },
+      {
+        path: 'user',
+        name: 'UserCenter',
+        component: () => import('../views/UserView.vue')
+      }
+    ]
+  }
+]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: '/',
-      name: 'login',
-      component: LoginView
-    },
-    {
-      path: '/generate',
-      name: 'generate',
-      component: GenerateView
-    },
-    {
-      path: '/exam',
-      name: 'exam',
-      component: ExamView
-    }
-  ]
+  history: createWebHistory(),
+  routes
+})
+
+router.beforeEach((to, from, next) => {
+  const user = localStorage.getItem('currentUser')
+  if (to.name !== 'Login' && !user) {
+    next({ name: 'Login' })
+  } else {
+    next()
+  }
 })
 
 export default router

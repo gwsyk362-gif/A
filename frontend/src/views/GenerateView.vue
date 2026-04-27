@@ -75,6 +75,7 @@
   // 定义所有需要的 emit
   const emit = defineEmits(['paper-generated', 'recommend-fetched', 'logout']);
 
+//加载科目
   const loadSubjects = async () => {
     try {
       const res = await fetch('http://localhost:8080/subjects');
@@ -85,6 +86,7 @@
     }
   };
 
+//组卷
   const handleGenerate = async () => {
     errorMessage.value = '';
     try {
@@ -97,6 +99,7 @@
     }
   };
 
+//推荐题目
   const handleRecommend = async () => {
   errorMessage.value = '';
   const userId = props.currentUser?.userId;

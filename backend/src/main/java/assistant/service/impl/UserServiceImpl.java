@@ -4,9 +4,9 @@ import assistant.entity.User;
 import assistant.mapper.UserMapper;
 import assistant.service.UserService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import org.springframework.stereotype.Service; // 必须引入这个
+import org.springframework.stereotype.Service;
 
-@Service // 关键：告诉 Spring 这是一个 Service 组件
+@Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
     @Override

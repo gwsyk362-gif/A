@@ -1,7 +1,7 @@
 <template>
   <div class="user-center">
     <div style="margin-bottom: 15px;">
-      <el-button icon="Back" @click="$emit('back')">返回首页</el-button>
+      <el-button icon="Back" @click="handleBack">返回首页</el-button>
     </div>
 
     <el-card class="user-info-card">
@@ -38,33 +38,61 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, defineProps, defineEmits } from 'vue'
+  import { ref, onMounted } from 'vue'
+  import { useRouter } from 'vue-router' // 1. 引入路由器
 
-  // 定义事件，确保父组件能接收到 'back'
-  const emit = defineEmits(['back']);
-
-  // 接收父组件传来的 user 对象
-  const props = defineProps({
-    currentUser: Object
-  });
-
+  const router = useRouter()
   const activeTab = ref('questions')
+
   const userInfo = ref({
-    nickname: props.currentUser?.nickname || '未登录',
-    username: props.currentUser?.username || '未登录'
+    nickname: '',
+    username: ''
   })
 
+  const favoriteQuestions = ref([])
+  const favoriteVideos = ref([])
+
+  onMounted(() => {
+    const savedUser = localStorage.getItem('currentUser')
+    if (savedUser) {
+      const user = JSON.parse(savedUser)
+      userInfo.value.nickname = user.nickname
+      userInfo.value.username = user.username
+    } else {
+      router.push('/login')
+    }
+  })
+
+  // 使用路由跳转回主页
+const handleBack = () => {
+  router.push('/main');
+}
 
   const handleTabChange = (name) => {
-    if (name === 'videos') {
-      console.log("切换到视频收藏页签");
-    }
+    console.log("切换标签页:", name)
   }
+
 </script>
 
 <style scoped>
-.user-center { padding: 20px; max-width: 1000px; margin: 0 auto; }
-.user-info-card { text-align: center; margin-bottom: 20px; }
-.video-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-.video-item .cover { width: 100%; height: 120px; object-fit: cover; }
+  .user-center {
+    padding: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .user-info-card {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 20px;
+  }
+  .video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+  }
+  .cover {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+  }
 </style>

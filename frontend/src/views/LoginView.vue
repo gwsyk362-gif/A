@@ -1,4 +1,4 @@
-<template xmlns="">
+<template>
   <div class="login-container">
     <div class="login-box">
       <div class="header">
@@ -46,17 +46,12 @@
 </template>
 
 <script setup>
-  import { ref, reactive, defineEmits } from 'vue'
+  import { ref, reactive } from 'vue'
+  import { useRouter } from 'vue-router' // 引入路由
   import axios from 'axios'
+  import { ElForm, ElFormItem, ElInput, ElButton, ElLink } from 'element-plus'
 
-  // 手动引入 Element Plus 组件
-  import {
-    ElForm, ElFormItem, ElInput,
-    ElSelect, ElOption, ElButton, ElLink
-  } from 'element-plus'
-  import 'element-plus/dist/index.css'
-
-  const emit = defineEmits(['login-success']);
+  const router = useRouter()
   const isLogin = ref(true)
 
   const form = reactive({
@@ -65,97 +60,79 @@
     nickname: ''
   })
 
-const handleUsernameInput = (value) => {
-  form.username = value.replace(/[^\d]/g, ''); // 仅允许输入数字
-};
-const handleSubmit = async () => {
-  // 长度校验
-  if (String(form.username).length !== 8) {
-    alert("账号必须是8位数字");
-    return;
-  }
-
-  const payload = {
-    username: Number(form.username), // 这里的名字必须和后端 User.java 一致
-    password: form.password,
-    nickname: isLogin.value ? undefined : form.nickname
+  const handleUsernameInput = (value) => {
+    form.username = value.replace(/[^\d]/g, '');
   };
 
-  // 3. 打印一下，你可以在控制台看到这个“载荷”到底长啥样
-  console.log("即将发送给后端的数据包:", payload);
+  const handleSubmit = async () => {
+    if (String(form.username).length !== 8) {
+      alert("账号必须是8位数字");
+      return;
+    }
 
-  try {
+    const payload = {
+      username: Number(form.username),
+      password: form.password,
+      nickname: isLogin.value ? undefined : form.nickname
+    };
+
+    try {
     if (isLogin.value) {
-      // 登录请求
       const res = await axios.post('http://localhost:8080/api/users/login', payload);
+
       if (res.data && typeof res.data === 'object') {
-        emit('login-success', res.data);
+        localStorage.setItem('currentUser', JSON.stringify(res.data));
+        router.push('/main');
       } else {
         alert("账号或密码错误");
       }
-    } else {
-      // 注册请求
-      const res = await axios.post('http://localhost:8080/api/users/register', payload);
-      if (res.data === "Success") {
-        alert("注册成功！请登录");
-        isLogin.value = true;
-      } else {
-        alert("注册失败：" + res.data);
+    }else {
+        const res = await axios.post('http://localhost:8080/api/users/register', payload);
+        if (res.data === "Success") {
+          alert("注册成功！请登录");
+          isLogin.value = true;
+        } else {
+          alert("注册失败：" + res.data);
+        }
       }
+    } catch (error) {
+      console.error("连接失败:", error);
+      alert("服务器连接失败，请检查后端服务");
     }
-  } catch (error) {
-    console.error("连接失败:", error);
-    alert("服务器连接失败，请检查后端服务");
-  }
-};
+  };
 </script>
 
 <style scoped>
-
-  .login-container {
-    height: 100vh;
-    display: flex;
-    justify-content: center;
+  .login-container
+   { height: 100vh;
+   display: flex;
+   justify-content: center;
     align-items: center;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  }
+    }
 
-  .login-box {
-    width: 400px;
-    padding: 40px;
-    background: white;
+  .login-box
+  { width: 400px;
+  padding: 40px;
+   background: white;
     border-radius: 12px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-  }
+     }
 
-  .header {
-    text-align: center;
-    margin-bottom: 30px;
-  }
+  .header
+   { text-align: center;
+   margin-bottom: 30px;
+   }
 
-  .header h2 {
-    color: #333;
-    margin-bottom: 10px;
-  }
+  .actions
+  { display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 20px;
+   }
 
-  .header p {
-    color: #888;
-    font-size: 14px;
-  }
-
-  .actions {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    margin-top: 20px;
-  }
-
-  .main-btn {
-    width: 100%;
-    height: 40px;
-  }
-
-  .switch-link {
-    font-size: 13px;
-  }
+  .main-btn
+  { width: 100%;
+   height: 40px;
+    }
 </style>

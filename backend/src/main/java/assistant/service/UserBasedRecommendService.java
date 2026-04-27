@@ -27,17 +27,17 @@ public class UserBasedRecommendService {
      */
 
     public List<Integer> recommendQuestions(Integer targetUserId, int recommendCount, Integer subjectId) {
-        // 1. 尝试获取当前用户的评分向量
+        // 获取当前用户的评分向量
         List<PracticeRecord> targetRecords = practiceRecordMapper.selectList(
                 new QueryWrapper<PracticeRecord>().eq("rec_user_id", targetUserId)
         );
-        // 2. 判断是否触发冷启动
+
+        // 判断是否触发冷启动
         if (targetRecords.isEmpty()) {
             System.out.println("User " + targetUserId + " is in cold-start phase.");
-            // 统一调用推荐封装方法
             return recommendByPopularity(subjectId, recommendCount);
         }
-        // 3. 非冷启动状态：此时才需要获取全表数据进行协同过滤计算
+        // 非冷启动状态：获取全表数据进行协同过滤计算
         List<PracticeRecord> allRecords = practiceRecordMapper.selectList(null);
         Map<Integer, Map<Integer, Double>> userScores = new HashMap<>();
         for (PracticeRecord rec : allRecords) {
@@ -47,7 +47,7 @@ public class UserBasedRecommendService {
 
         Map<Integer, Double> targetUserVector = userScores.get(targetUserId);
 
-        // 4. 协同过滤
+        // 协同过滤
         Map<Integer, Double> userSimilarities = new HashMap<>();
         for (Integer otherUserId : userScores.keySet()) {
             if (otherUserId.equals(targetUserId)) continue;

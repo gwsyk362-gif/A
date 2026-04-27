@@ -39,13 +39,13 @@ public class PaperController {
     public List<Question> recommendQuestions(@RequestParam Integer userId,
                                              @RequestParam int count,
                                              @RequestParam Integer subjectId) {
-        // 1. 先获取推荐的题目 ID 列表
+        // 获取推荐的题目 ID 列表
         List<Integer> quesIds = userBasedRecommendService.recommendQuestions(userId, count, subjectId);
 
-        // 2. 将 ID 列表转换为完整的题目对象列表
+        // 将 ID 列表转换为完整的题目对象列表
         if (quesIds.isEmpty()) return new ArrayList<>();
 
-        // 使用 MyBatis-Plus 的 selectBatchIds 直接查询完整信息
+        // 使用 selectBatchIds 直接查询完整信息
         return questionMapper.selectBatchIds(quesIds);
     }
 }

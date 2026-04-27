@@ -61,7 +61,7 @@
   const formatOptions = (optionsStr) => {
     if (!optionsStr) return [];
     return optionsStr
-      .split(/(?=[A-D][、\. \s])/)
+      .split(/(?=[A-D][\.．、\s])/)
       .map(o => o.trim())
       .filter(o => o.length > 0);
   };

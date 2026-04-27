@@ -14,7 +14,7 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    // 登录接口
+    // 登录
     @PostMapping("/login")
     public User login(@RequestBody User user) {
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
@@ -23,7 +23,7 @@ public class UserController {
         return userService.getOne(queryWrapper);
     }
 
-    // 注册接口
+    // 注册
     @PostMapping("/register")
     public String register(@RequestBody User user) {
         if (user.getUsername() == null || String.valueOf(user.getUsername()).length() != 8) {
