@@ -16,7 +16,7 @@ public class subjectsController {
     @Autowired
     private SubjectMapper subjectMapper;
 
-    @GetMapping("/subjects") // 设置网页访问路径为 /subjects
+    @GetMapping("/subjects")
     public List<Subject> getAllSubjects() {
         System.out.println("Loading subjects...");
         List<Subject> result = subjectMapper.selectList(null);

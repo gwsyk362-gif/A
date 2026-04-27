@@ -1,6 +1,7 @@
 package assistant.controller;
 
 import assistant.entity.Question;
+import assistant.mapper.QuestionMapper;
 import assistant.service.UserBasedRecommendService;
 import assistant.service.paperGenerating;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -22,6 +24,9 @@ public class PaperController {
     @Autowired
     private UserBasedRecommendService userBasedRecommendService;
 
+    @Autowired
+    private QuestionMapper questionMapper;
+
     @GetMapping("/generate")
     public List<Question> getPaper(@RequestParam Integer subId, @RequestParam Integer count) {
         System.out.println("Generating paper for subId: " + subId + ", count: " + count);
@@ -31,10 +36,16 @@ public class PaperController {
     }
 
     @GetMapping("/recommend")
-    public List<Integer> recommendQuestions(@RequestParam Integer userId, @RequestParam Integer count) {
-        System.out.println("Recommending questions for userId: " + userId + ", count: " + count);
-        List<Integer> result = userBasedRecommendService.recommendQuestions(userId, count);
-        System.out.println("Recommended " + result.size() + " question IDs: " + result);
-        return result;
+    public List<Question> recommendQuestions(@RequestParam Integer userId,
+                                             @RequestParam int count,
+                                             @RequestParam Integer subjectId) {
+        // 1. 先获取推荐的题目 ID 列表
+        List<Integer> quesIds = userBasedRecommendService.recommendQuestions(userId, count, subjectId);
+
+        // 2. 将 ID 列表转换为完整的题目对象列表
+        if (quesIds.isEmpty()) return new ArrayList<>();
+
+        // 使用 MyBatis-Plus 的 selectBatchIds 直接查询完整信息
+        return questionMapper.selectBatchIds(quesIds);
     }
 }

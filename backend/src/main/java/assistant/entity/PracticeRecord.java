@@ -21,4 +21,5 @@ public class PracticeRecord {
     private Integer recIsCorrect;
 
     private LocalDateTime recTime;
+
 }

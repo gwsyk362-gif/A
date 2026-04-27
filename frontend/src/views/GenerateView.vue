@@ -1,33 +1,54 @@
 <template>
   <div class="generate-container">
-
     <h1>个性化学习助手</h1>
 
     <div class="config-section">
       <div class="row central-row">
-        <label>选择科目：
-          <select v-model="selectedSubjectId">
-            <option disabled value="">请选择科目</option>
-            <option v-for="subject in subjects" :key="subject.subId" :value="subject.subId">
-              {{ subject.subName }}
-            </option>
-          </select>
-        </label>
+        <template v-if="mode === 'paper'">
+          <label>选择科目：
+            <select v-model="selectedSubjectId">
+              <option disabled value="">请选择科目</option>
+              <option v-for="subject in subjects" :key="subject.subId" :value="subject.subId">
+                {{ subject.subName }}
+              </option>
+            </select>
+          </label>
 
-        <label>组卷题数：
-          <input type="number" v-model.number="questionCount" />
-        </label>
+          <label>组卷题数：
+            <input type="number" v-model.number="questionCount" />
+          </label>
+        </template>
 
-        <label>推荐题数：
-          <input type="number" v-model.number="recommendCount" />
-        </label>
+        <template v-else-if="mode === 'practice'">
+          <label>选择科目：
+            <select v-model="selectedSubjectId">
+              <option disabled value="">请选择科目</option>
+              <option v-for="subject in subjects" :key="subject.subId" :value="subject.subId">
+                {{ subject.subName }}
+              </option>
+            </select>
+          </label>
+
+          <label>推荐题数：
+            <input type="number" v-model.number="recommendCount" />
+          </label>
+        </template>
       </div>
 
       <div class="row action-row">
-        <button :disabled="!selectedSubjectId || questionCount <= 0" @click="handleGenerate">
+        <button
+          v-if="mode === 'paper'"
+          :disabled="!selectedSubjectId || questionCount <= 0"
+          @click="handleGenerate"
+        >
           生成试卷
         </button>
-        <button :disabled="recommendCount <= 0" @click="handleRecommend">
+
+        <button
+          v-if="mode === 'practice'"
+          :disabled="!selectedSubjectId || recommendCount <= 0"
+          @click="handleRecommend"
+        >
           刷新题目
         </button>
       </div>
@@ -41,16 +62,18 @@
   import { ref, onMounted, defineEmits, defineProps } from 'vue';
 
   const props = defineProps({
-    currentUser: Object
+    currentUser: Object,
+    mode: String
   });
 
   const subjects = ref([]);
   const selectedSubjectId = ref('');
   const questionCount = ref(5);
   const recommendCount = ref(5);
-  const recommendations = ref([]);
   const errorMessage = ref('');
-  const emit = defineEmits(['paper-generated', 'logout']);
+
+  // 定义所有需要的 emit
+  const emit = defineEmits(['paper-generated', 'recommend-fetched', 'logout']);
 
   const loadSubjects = async () => {
     try {
@@ -64,11 +87,6 @@
 
   const handleGenerate = async () => {
     errorMessage.value = '';
-    const userId = props.currentUser?.userId;
-    if (!userId) {
-      errorMessage.value = '用户信息缺失，请重新登录';
-      return;
-    }
     try {
       const res = await fetch(`http://localhost:8080/generate?subId=${selectedSubjectId.value}&count=${questionCount.value}`);
       if (!res.ok) throw new Error('生成试卷失败');
@@ -80,20 +98,22 @@
   };
 
   const handleRecommend = async () => {
-    errorMessage.value = '';
-    const userId = props.currentUser?.userId;
-    if (!userId) {
-      errorMessage.value = '用户信息缺失，请重新登录';
-      return;
-    }
-    try {
-      const res = await fetch(`http://localhost:8080/recommend?userId=${userId}&count=${recommendCount.value}`);
-      if (!res.ok) throw new Error('获取推荐失败');
-      recommendations.value = await res.json();
-    } catch (err) {
-      errorMessage.value = err.message;
-    }
-  };
+  errorMessage.value = '';
+  const userId = props.currentUser?.userId;
+  if (!userId) {
+    errorMessage.value = '用户信息缺失，请重新登录';
+    return;
+  }
+  try {
+    const res = await fetch(`http://localhost:8080/recommend?userId=${userId}&count=${recommendCount.value}&subjectId=${selectedSubjectId.value}`);
+
+    if (!res.ok) throw new Error('获取推荐失败');
+    const data = await res.json();
+    emit('recommend-fetched', data);
+  } catch (err) {
+    errorMessage.value = err.message;
+  }
+};
 
   onMounted(loadSubjects);
 </script>
