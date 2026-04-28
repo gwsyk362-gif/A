@@ -1,12 +1,12 @@
 // VideoResources.vue
 <template>
   <div class="video-resources">
-    <div v-if="filteredVideos.length === 0" class="empty-placeholder">
+    <div v-if="videoList.length === 0" class="empty-placeholder">
       😢 没有找到相关视频资源
     </div>
     <div class="video-grid">
       <div
-        v-for="video in filteredVideos"
+        v-for="video in videoList"
         :key="video.id"
         class="video-card"
         @click="openVideo(video)"
@@ -39,7 +39,7 @@
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             ></iframe>
             <div v-else class="no-video">
-              ⚠️ 视频链接暂不可用，请联系管理员
+              ⚠️ 视频链接暂不可用
             </div>
           </div>
           <p class="video-description">{{ currentVideo?.description }}</p>
@@ -50,76 +50,55 @@
 </template>
 
 <script setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, onMounted, watch } from 'vue'; 
+ import axios from 'axios';
 
-  const props = defineProps({
-    searchQuery: {
-      type: String,
-      default: ''
-    }
-  });
+   const props = defineProps({
+     searchQuery: {
+       type: String,
+       default: ''
+     }
+   });
 
-  // 模拟视频资源数据 - 实际使用时可以替换为后端API请求
-  const videoList = ref([
-    {
-      id: 1,
-      title: '前端开发实战技巧',
-      description: '掌握现代前端开发必备技能，从组件设计到性能优化',
-      embedUrl: 'https://player.bilibili.com/player.html?bvid=BV1x54y1B7Tp&page=1'
-    },
-    {
-      id: 2,
-      title: 'Vue3 从入门到精通',
-      description: '全面讲解Vue3组合式API、响应式原理及工程化实践',
-      embedUrl: 'https://player.bilibili.com/player.html?bvid=BV1eJ41127aA&page=1'
-    },
-    {
-      id: 3,
-      title: '数据结构与算法',
-      description: '深入理解数组、链表、树等核心数据结构及算法思想',
-      embedUrl: 'https://player.bilibili.com/player.html?bvid=BV1GJ411x7h7&page=1'
-    },
-    {
-      id: 4,
-      title: 'TypeScript 进阶指南',
-      description: '类型系统深入、高级类型及实际项目中的应用技巧',
-      embedUrl: 'https://player.bilibili.com/player.html?bvid=BV1ZY4y1w7Tj&page=1'
-    },
-    {
-      id: 5,
-      title: '前端工程化实战',
-      description: 'Webpack/Vite 构建优化、CI/CD 流程、Monorepo 架构设计',
-      embedUrl: 'https://player.bilibili.com/player.html?bvid=BV1GB4y1U7jX&page=1'
-    }
-  ]);
+   const videoList = ref([]);
+   const loading = ref(false);
 
-  // 根据搜索词过滤视频
-  const filteredVideos = computed(() => {
-    if (!props.searchQuery.trim()) return videoList.value;
-    const query = props.searchQuery.toLowerCase().trim();
-    return videoList.value.filter(
-      video =>
-        video.title.toLowerCase().includes(query) ||
-        video.description.toLowerCase().includes(query)
-    );
-  });
+  const fetchVideos = async () => {
+   try {
+     const response = await axios.get('/api/videos/list', {
+       params: { keyword: props.searchQuery }
+     });
 
-  // 模态框状态
-  const showModal = ref(false);
-  const currentVideo = ref(null);
+     videoList.value = response.data;
 
-  const openVideo = (video) => {
-    currentVideo.value = video;
-    showModal.value = true;
-    // 防止背景滚动
-    document.body.style.overflow = 'hidden';
-  };
+   } catch (error) {
+     console.error("加载视频失败", error);
+   }
+ };
 
-  const closeModal = () => {
-    showModal.value = false;
-    currentVideo.value = null;
-    document.body.style.overflow = '';
-  };
+   onMounted(fetchVideos);
+
+   // 监听搜索框变化
+   watch(() => props.searchQuery, () => {
+     fetchVideos();
+   });
+
+
+   // 模态框状态
+   const showModal = ref(false);
+   const currentVideo = ref(null);
+
+   const openVideo = (video) => {
+     currentVideo.value = video;
+     showModal.value = true;
+     document.body.style.overflow = 'hidden';
+   };
+
+   const closeModal = () => {
+     showModal.value = false;
+     currentVideo.value = null;
+     document.body.style.overflow = '';
+   };
 </script>
 
 <style scoped>

@@ -66,17 +66,15 @@ public class UserBasedRecommendService {
     }
 
     private List<Integer> recommendByPopularity(Integer subjectId, int count) {
-        // 先按热度查
+        // 按热度查找
         List<Integer> ids = practiceRecordMapper.selectHotQuestionIds(subjectId, count);
 
-        // 如果全站都没人做过这个科目的题，则随机从题库抽题
+        // 没人做过 随机抽题
         if (ids == null || ids.isEmpty()) {
             return questionMapper.selectRandomIdsBySubject(subjectId, count);
         }
         return ids;
     }
-
-
 
     private double calculatePearson(Map<Integer, Double> v1, Map<Integer, Double> v2) {
         Set<Integer> commonKeys = new HashSet<>(v1.keySet());

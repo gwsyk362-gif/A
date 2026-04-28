@@ -11,13 +11,13 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 
 @Service
-public class VideoResourceServiceImpl extends ServiceImpl<VideoResourceMapper, VideoResource> implements VideoResourceFind {
-    
+public class VideoResourceFindimpl extends ServiceImpl<VideoResourceMapper, VideoResource> implements VideoResourceFind {
+
     @Override
     public List<VideoResource> searchVideos(String keyword) {
         LambdaQueryWrapper<VideoResource> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
-            // 匹配标题或描述
+            // 查找视频
             wrapper.like(VideoResource::getVidTitle, keyword)
                     .or()
                     .like(VideoResource::getVidDescription, keyword);

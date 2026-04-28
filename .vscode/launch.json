@@ -1,15 +1,42 @@
 {
-    // 使用 IntelliSense 了解相关属性。 
-    // 悬停以查看现有属性的描述。
-    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-    
         {
             "type": "java",
-            "name": "Current File",
+            "name": "启动后端 (Spring Boot)",
             "request": "launch",
-            "mainClass": "${file}"
+            "mainClass": "assistant.assistant_app",
+            "projectName": "assistant", 
+            "cwd": "${workspaceFolder}/backend",
+            "env": {
+                "server.port": "8080"
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "启动前端 (Vite)",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "dev"
+            ],
+            "cwd": "${workspaceFolder}/frontend",
+            "serverReadyAction": {
+                "pattern": "local",
+                "action": "openExternally",
+                "uriFormat": "http://localhost:5173/login"
+            },
+            "console": "integratedTerminal"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "全栈一键启动",
+            "configurations": [
+                "启动后端 (Spring Boot)",
+                "启动前端 (Vite)"
+            ]
         }
     ]
 }

@@ -1,17 +1,22 @@
 <template>
   <div class="app-container">
-    <router-view />
+    <GenerateView @paper-generated="setupPaper" />
+    
+    <hr />
+
+    <ExamView :paper="currentPaper" @reset="currentPaper = []" />
   </div>
 </template>
 
 <script setup>
-  // App.vue 不再负责逻辑分发
-</script>
+import { ref } from 'vue';
+import GenerateView from './views/GenerateView.vue';
+import ExamView from './views/ExamView.vue';
 
-<style>
-  body {
-    background-color: #ffffff;
-    margin: 0;
-    font-family: sans-serif;
-  }
-</style>
+const currentPaper = ref([]);
+
+const setupPaper = (data) => {
+  currentPaper.value = data;
+};
+</script>
+<style scoped></style>
