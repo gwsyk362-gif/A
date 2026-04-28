@@ -7,17 +7,16 @@
     <div class="video-grid">
       <div
         v-for="video in videoList"
-        :key="video.id"
-        class="video-card"
+        :key="video.vidId"  class="video-card"
         @click="openVideo(video)"
       >
         <div class="video-cover">
           <span class="play-icon">▶️</span>
-          <span class="cover-text">{{ video.title.charAt(0) }}</span>
+          <span class="cover-text">{{ video.vidTitle ? video.vidTitle.charAt(0) : '' }}</span>
         </div>
         <div class="video-info">
-          <h4 class="video-title">{{ video.title }}</h4>
-          <p class="video-desc">{{ video.description }}</p>
+          <h4 class="video-title">{{ video.vidTitle }}</h4>
+          <p class="video-desc">{{ video.vidDescription }}</p>
         </div>
       </div>
     </div>
@@ -26,14 +25,14 @@
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
       <div class="modal-container" @click.stop>
         <div class="modal-header">
-          <h3>{{ currentVideo?.title }}</h3>
+          <h3>{{ currentVideo?.vidTitle }}</h3>
           <button class="close-btn" @click="closeModal">✕</button>
         </div>
         <div class="modal-body">
           <div class="video-wrapper">
             <iframe
-              v-if="currentVideo?.embedUrl"
-              :src="currentVideo.embedUrl"
+              v-if="currentVideo?.vidUrl"
+              :src="currentVideo.vidUrl"
               frameborder="0"
               allowfullscreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -42,7 +41,7 @@
               ⚠️ 视频链接暂不可用
             </div>
           </div>
-          <p class="video-description">{{ currentVideo?.description }}</p>
+          <p class="video-description">{{ currentVideo?.vidDescription }}</p>
         </div>
       </div>
     </div>
@@ -50,7 +49,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, onMounted, watch } from 'vue'; 
+  import { ref, computed, onMounted, watch } from 'vue';
  import axios from 'axios';
 
    const props = defineProps({
@@ -160,7 +159,7 @@
     padding: 12px 16px;
   }
 
-  .video-title {
+  .video-vidtitle {
     font-size: 16px;
     font-weight: 600;
     color: #18191c;
@@ -279,7 +278,7 @@
     border: none;
   }
 
-  .video-description {
+  .video-vidDescription {
     margin-top: 16px;
     font-size: 14px;
     color: #4e555e;

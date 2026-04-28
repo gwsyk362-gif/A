@@ -112,31 +112,53 @@
     }
   });
 
-  // 组卷
+ // 组卷模式 (打上 isPractice: false 标记)
   const handleGenerate = async () => {
     errorMessage.value = '';
     try {
       const res = await fetch(`http://localhost:8080/generate?subId=${selectedSubjectId.value}&count=${questionCount.value}`);
       if (!res.ok) throw new Error('生成试卷失败');
       const data = await res.json();
-      emit('paper-generated', data.map(q => ({ ...q, userAnswer: '', submitted: false })));
+      // ✨ 加上 isPractice: false
+      emit('paper-generated', data.map(q => ({ ...q, userAnswer: '', submitted: false, isPractice: false })));
     } catch (err) {
       errorMessage.value = err.message;
     }
   };
 
-  // 练习
+  // 练习模式 (打上 isPractice: true 标记)
+  // 练习：获取个性化推荐题目
   const handleRecommend = async () => {
     errorMessage.value = '';
     try {
-      let url = `http://localhost:8080/practice/all?subjectId=${selectedSubjectId.value}`;
+      // 1. 从 localStorage 获取当前用户的 ID
+      const savedUser = localStorage.getItem('currentUser');
+      if (!savedUser) {
+        errorMessage.value = "请先登录";
+        return;
+      }
+      const user = JSON.parse(savedUser);
+      const userId = user.userId;
+
+      // 2. 调用recommend 接口
+      let url = `http://localhost:8080/recommend?userId=${userId}&count=${recommendCount.value}&subjectId=${selectedSubjectId.value}`;
+
       if (selectedKnowledgePoint.value) {
         url += `&kp=${encodeURIComponent(selectedKnowledgePoint.value)}`;
       }
+
       const res = await fetch(url);
-      if (!res.ok) throw new Error('获取题目失败');
+      if (!res.ok) throw new Error('获取推荐题目失败');
+
       const data = await res.json();
-      emit('recommend-fetched', data.map(q => ({ ...q, userAnswer: '', submitted: false })));
+
+      // 补充前端所需的状态字段
+      emit('recommend-fetched', data.map(q => ({
+        ...q,
+        userAnswer: '',
+        submitted: false,
+        isPractice: true
+      })));
     } catch (err) {
       errorMessage.value = err.message;
     }

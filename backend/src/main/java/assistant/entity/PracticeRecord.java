@@ -13,13 +13,10 @@ public class PracticeRecord {
     private Long recId;
 
     private Integer recUserId;
-
     private Integer recQuesId;
-
     private String recUserAnswer;
 
     private Integer recIsCorrect;
 
     private LocalDateTime recTime;
-
 }
