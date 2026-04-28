@@ -1,11 +1,5 @@
 <template>
-  <div class="app-container">
-    <GenerateView @paper-generated="setupPaper" />
-    
-    <hr />
-
-    <ExamView :paper="currentPaper" @reset="currentPaper = []" />
-  </div>
+  <router-view></router-view>
 </template>
 
 <script setup>

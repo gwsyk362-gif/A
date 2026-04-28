@@ -29,9 +29,15 @@
             </select>
           </label>
 
-          <label>推荐题数：
-            <input type="number" v-model.number="recommendCount" />
+          <label>选择知识点：
+            <select v-model="selectedKnowledgePoint" :disabled="!selectedSubjectId">
+              <option value="">全部知识点</option>
+              <option v-for="kp in knowledgePoints" :key="kp" :value="kp">
+                {{ kp }}
+              </option>
+            </select>
           </label>
+
         </template>
       </div>
 
@@ -59,7 +65,8 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, defineEmits, defineProps } from 'vue';
+  // ✨ 1. 别忘了从 vue 中导入 watch
+  import { ref, onMounted, defineEmits, defineProps, watch } from 'vue';
 
   const props = defineProps({
     currentUser: Object,
@@ -72,10 +79,13 @@
   const recommendCount = ref(5);
   const errorMessage = ref('');
 
-  // 定义所有需要的 emit
+  // ✨ 2. 新增的响应式变量，用于存放知识点下拉列表和用户选中的知识点
+  const knowledgePoints = ref([]);
+  const selectedKnowledgePoint = ref('');
+
   const emit = defineEmits(['paper-generated', 'recommend-fetched', 'logout']);
 
-//加载科目
+  // 加载科目
   const loadSubjects = async () => {
     try {
       const res = await fetch('http://localhost:8080/subjects');
@@ -86,37 +96,51 @@
     }
   };
 
-//组卷
+  // 监听所选科目的变化。一旦换了科目，就拉取对应的知识点
+  watch(selectedSubjectId, async (newVal) => {
+    selectedKnowledgePoint.value = ''; // 切换科目时，清空之前选的知识点
+    knowledgePoints.value = []; // 清空旧的知识点列表
+
+    if (!newVal) return;
+    try {
+      const res = await fetch(`http://localhost:8080/knowledgePoints?subId=${newVal}`);
+      if (!res.ok) throw new Error('无法加载知识点');
+      const data = await res.json();
+      knowledgePoints.value = data;
+    } catch (err) {
+      console.error('获取知识点失败:', err);
+    }
+  });
+
+  // 组卷
   const handleGenerate = async () => {
     errorMessage.value = '';
     try {
       const res = await fetch(`http://localhost:8080/generate?subId=${selectedSubjectId.value}&count=${questionCount.value}`);
       if (!res.ok) throw new Error('生成试卷失败');
       const data = await res.json();
-      emit('paper-generated', data.map(q => ({ ...q, userAnswer: '' })));
+      emit('paper-generated', data.map(q => ({ ...q, userAnswer: '', submitted: false })));
     } catch (err) {
       errorMessage.value = err.message;
     }
   };
 
-//推荐题目
+  // 练习
   const handleRecommend = async () => {
-  errorMessage.value = '';
-  const userId = props.currentUser?.userId;
-  if (!userId) {
-    errorMessage.value = '用户信息缺失，请重新登录';
-    return;
-  }
-  try {
-    const res = await fetch(`http://localhost:8080/recommend?userId=${userId}&count=${recommendCount.value}&subjectId=${selectedSubjectId.value}`);
-
-    if (!res.ok) throw new Error('获取推荐失败');
-    const data = await res.json();
-    emit('recommend-fetched', data);
-  } catch (err) {
-    errorMessage.value = err.message;
-  }
-};
+    errorMessage.value = '';
+    try {
+      let url = `http://localhost:8080/practice/all?subjectId=${selectedSubjectId.value}`;
+      if (selectedKnowledgePoint.value) {
+        url += `&kp=${encodeURIComponent(selectedKnowledgePoint.value)}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('获取题目失败');
+      const data = await res.json();
+      emit('recommend-fetched', data.map(q => ({ ...q, userAnswer: '', submitted: false })));
+    } catch (err) {
+      errorMessage.value = err.message;
+    }
+  };
 
   onMounted(loadSubjects);
 </script>

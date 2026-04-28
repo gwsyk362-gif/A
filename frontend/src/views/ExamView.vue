@@ -1,222 +1,261 @@
 <template>
-  <div v-if="questions.length" class="exam-container">
-    <div v-if="showResult" class="score-banner">
-      正确率：{{ score }} / {{ questions.length }}
-    </div>
+  <div v-if="questions && questions.length > 0" class="exam-container">
 
-    <div v-for="(question, index) in questions" :key="question.quesId" class="question-card">
-      <div class="question-header">
-        <div class="question-title">
-          {{ index + 1 }}. {{ question.quesContent }}
+    <div class="cards-grid">
+      <div v-for="(question, index) in questions" :key="question.quesId" class="question-card">
+
+        <div class="question-header">
+          <div class="question-title">
+            {{ index + 1 }}. {{ question.quesContent }}
+          </div>
+          <span v-if="question.quesKp" class="knowledge-tag">
+            {{ question.quesKp }}
+          </span>
         </div>
 
-        <span v-if="question.knowledgePoint" class="knowledge-tag">
-    {{ question.knowledgePoint }}
-  </span>
-      </div>
-
-      <div class="options-group">
-        <div
-          v-for="(opt, optIndex) in formatOptions(question.quesOptions)"
-          :key="optIndex"
-          class="option-item"
-          :class="{ 'selected': question.userAnswer === getOptionLetter(opt) }"
-          @click="selectAnswer(question, opt)"
-        >
-          <label class="option-label">
-            <input
-              type="radio"
-              :name="'q-' + question.quesId"
-              :value="getOptionLetter(opt)"
-              v-model="question.userAnswer"
-              :disabled="showResult"
-            />
-            <span>{{ opt }}</span>
-          </label>
+        <div class="options-group">
+          <div
+            v-for="(opt, optIndex) in formatOptions(question.quesOptions)"
+            :key="optIndex"
+            class="option-item"
+            :class="{ 'selected': question.userAnswer === getOptionLetter(opt) }"
+            @click="selectAnswer(question, opt)"
+          >
+            <label class="option-label">
+              <input
+                type="radio"
+                :name="'q-' + question.quesId"
+                :value="getOptionLetter(opt)"
+                v-model="question.userAnswer"
+                :disabled="question.submitted"
+              />
+              <span>{{ opt }}</span>
+            </label>
+          </div>
         </div>
-      </div>
 
-      <div v-if="showResult" :class="['result-box', question.userAnswer === question.quesAnswer ? 'correct' : 'wrong']">
-        <span v-if="question.userAnswer === question.quesAnswer">✓ 正确</span>
-        <span v-else>✗ 错误。正确答案是：{{ question.quesAnswer }}</span>
+        <div class="card-footer">
+          <button
+            v-if="!question.submitted"
+            :disabled="!question.userAnswer"
+            class="submit-single-btn"
+            @click="submitSingle(question)">
+            提交答案
+          </button>
 
-        <div class="knowledge-analysis">
-          <strong>考查内容：</strong>{{ question.quesKp || '基础题型' }}
+          <div v-else :class="['result-box', question.userAnswer === question.quesAnswer ? 'correct' : 'wrong']">
+            <span v-if="question.userAnswer === question.quesAnswer">✓ 正确</span>
+            <span v-else>✗ 错误。正确答案是：{{ question.quesAnswer }}</span>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <div class="action-bar">
-      <button v-if="!showResult" @click="submitPaper" class="submit-btn">提交所有答案</button>
-      <button v-else @click="resetPaper" class="clear-btn">清除当前试卷</button>
-    </div>
+      </div>
+    </div> <div class="action-bar">
+    <button @click="resetPaper" class="clear-btn">清空当前题目</button>
+  </div>
+
+  </div>
+
+  <div v-else class="empty-state">
+    <p>暂无符合该知识点的题目，请更换条件重试...</p>
   </div>
 </template>
 
 <script setup>
-  import { ref, defineProps, defineEmits, watch } from 'vue';
+  import { defineProps, defineEmits } from 'vue';
 
   const props = defineProps({
-  questions: Array
-});
+    questions: {
+      type: Array,
+      default: () => []
+    }
+  });
 
-  const showResult = ref(false);
-  const score = ref(0);
   const emit = defineEmits(['reset']);
 
-  watch(() => props.questions, () => {
-  showResult.value = false;
-  score.value = 0;
-}, { deep: false });
+  const formatOptions = (optionsStr) => {
+    if (!optionsStr) return [];
+    const cleanStr = optionsStr.replace(/\s+/g, ' ').trim() + " ";
+    const regex = /[A-D][\.．、\s][\s\S]*?(?=[A-D][\.．、\s]|$)/g;
+    const matches = cleanStr.match(regex);
+    return matches ? matches.map(o => o.trim()).filter(o => o.length > 2) : [];
+  };
 
-  // 解析选项文本
-const formatOptions = (optionsStr) => {
-  if (!optionsStr) return [];
-
-  const cleanStr = optionsStr.replace(/\s+/g, ' ').trim() + " ";//去掉多余空格
-  const regex = /[A-D][\.．、\s][\s\S]*?(?=[A-D][\.．、\s]|$)/g;//正则表达式
-  const matches = cleanStr.match(regex);
-
-  return matches ? matches.map(o => o.trim()).filter(o => o.length > 2) : [];
-};
-
-  // 获取选项字母 (A, B, C, D)
   const getOptionLetter = (optText) => {
     return optText.trim().charAt(0).toUpperCase();
   };
 
-  // 处理点击选择
+  // 单题选择
   const selectAnswer = (question, opt) => {
-    if (!showResult.value) {
+    if (!question.submitted) {
       question.userAnswer = getOptionLetter(opt);
     }
   };
 
-  // 提交判断正误
-  const submitPaper = () => {
-    score.value = props.questions.filter(q => q.userAnswer === q.quesAnswer).length;
-    showResult.value = true;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  // ✨ 单题提交逻辑
+  const submitSingle = (question) => {
+    if (question.userAnswer) {
+      question.submitted = true; // 只锁定并显示当前这道题的结果
+    }
   };
 
-  // 重置状态
+  // 清空面板
   const resetPaper = () => {
-    showResult.value = false;
-    score.value = 0;
-    emit('reset'); // 通知父组件清空数据
+    emit('reset');
   };
 </script>
 
 <style scoped>
-.exam-container {
-  margin-top: 20px;
-}
-.score-banner {
-  text-align: center;
-  font-size: 24px;
-  padding: 20px;
-  color: #3478e5;
-  background: #fff;
-  border-radius: 12px;
-  margin-bottom: 20px;
-}
-.question-card {
-  border: 1px solid #e1e4ea;
-  border-radius: 10px;
-  background: #fbfdff;
-  padding: 20px;
-  margin-bottom: 16px;
-}
-.question-title {
-  font-weight: 700;
-  margin-bottom: 15px;
-  font-size: 1.1em;
-}
-.option-item {
-  margin: 10px 0;
-  padding: 10px;
-  border: 1px solid #eee;
-  border-radius: 6px;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-.option-item:hover:not(.disabled) {
-  background: #f0f7ff;
-}
-.option-label {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-.option-label input {
-  margin-right: 12px;
-}
-.result-box {
-  margin-top: 15px;
-  padding: 12px;
-  border-radius: 6px;
-  font-weight: bold;
-}
-.correct {
-  background: #e6fffa;
-  color: #27ae60;
-  border: 1px solid #b2f2bb;
-}
-.wrong {
-  background: #fff5f5;
-  color: #c0392b;
-  border: 1px solid #feb2b2;
-}
-.action-bar {
-  margin-top: 30px;
-  text-align: center;
-}
-button {
-  padding: 12px 40px;
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  font-weight: bold;
-  cursor: pointer;
-}
-.submit-btn { background: #27ae60; }
-.clear-btn { background: #7f8c8d; }
+  .exam-container {
+    margin-top: 20px;
+  }
 
-  /* 关键：使用 Flex 布局让题干和标签左右分开 */
-.question-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start; /* 顶部对齐 */
-  gap: 15px; /* 间距 */
-  margin-bottom: 15px;
-}
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 30px;
+  }
 
-/* 覆盖原有样式，去掉 margin 确保对齐 */
-.question-title {
-  font-weight: 700;
-  font-size: 1.1em;
-  margin-bottom: 0;
-  flex: 1; /* 自动撑开，确保标签被推到最右侧 */
-}
+  .question-card {
+    border: none;
+    border-radius: 16px;
+    background: #ffffff;
+    padding: 24px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column; /* 让底部区域能推到底部 */
+  }
 
-/* 蓝色小标签样式 */
-.knowledge-tag {
-  background: #eef4ff;
-  color: #3478e5;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  white-space: nowrap; /* 强制不换行 */
-  border: 1px solid #d1e3fa;
-}
+  .question-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  }
 
-/* 结果区下方的详细显示 */
-.knowledge-analysis {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed rgba(0,0,0,0.05);
-  font-size: 0.9em;
-  font-weight: normal;
-}
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  .question-title {
+    font-weight: 700;
+    font-size: 1.05em;
+    line-height: 1.5;
+    margin-bottom: 0;
+    flex: 1;
+  }
+  .knowledge-tag {
+    background: #eef4ff;
+    color: #3478e5;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    border: 1px solid #d1e3fa;
+  }
+
+  .options-group {
+    margin-top: 10px;
+    flex: 1; /* 撑开中间区域 */
+  }
+  .option-item {
+    margin: 8px 0;
+    padding: 10px 14px;
+    border: 1px solid #f0f2f5;
+    border-radius: 10px;
+    background: #fafafa;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .option-item:hover:not(.disabled) {
+    background: #f0f7ff;
+  }
+  .option-item.selected {
+    background: #f0f7ff;
+    border-color: #3478e5;
+  }
+  .option-label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+  .option-label input {
+    margin-right: 12px;
+  }
+
+  /* ✨ 单题提交区域样式 */
+  .card-footer {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px dashed #f0f2f5;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .submit-single-btn {
+    padding: 8px 20px;
+    background: #3478e5;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.3s;
+  }
+  .submit-single-btn:disabled {
+    background: #e1e4ea;
+    color: #9499a0;
+    cursor: not-allowed;
+  }
+  .submit-single-btn:hover:not(:disabled) {
+    background: #285fb3;
+  }
+
+  .result-box {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+  }
+  .correct {
+    background: #e6fffa;
+    color: #27ae60;
+    border: 1px solid #b2f2bb;
+  }
+  .wrong {
+    background: #fff5f5;
+    color: #c0392b;
+    border: 1px solid #feb2b2;
+  }
+
+  .action-bar {
+    margin-top: 30px;
+    text-align: center;
+  }
+  .clear-btn {
+    padding: 12px 40px;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    background: #9499a0;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 50px;
+    color: #999;
+    font-size: 16px;
+    background: #f9fafc;
+    border-radius: 10px;
+    margin-top: 20px;
+  }
 </style>

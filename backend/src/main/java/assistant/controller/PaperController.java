@@ -38,14 +38,35 @@ public class PaperController {
     @GetMapping("/recommend")
     public List<Question> recommendQuestions(@RequestParam Integer userId,
                                              @RequestParam int count,
-                                             @RequestParam Integer subjectId) {
-        // 获取推荐的题目 ID 列表
-        List<Integer> quesIds = userBasedRecommendService.recommendQuestions(userId, count, subjectId);
+                                             @RequestParam Integer subjectId,
+                                             @RequestParam(required = false) String kp) {
+        List<Integer> quesIds = userBasedRecommendService.recommendQuestions(userId, count, subjectId, kp);
 
-        // 将 ID 列表转换为完整的题目对象列表
+        // 将 ID 列表转换为完整的题目列表
         if (quesIds.isEmpty()) return new ArrayList<>();
 
-        // 使用 selectBatchIds 直接查询完整信息
+        // 用selectBatchIds查询完整信息
         return questionMapper.selectBatchIds(quesIds);
+    }
+
+    //获取知识点列表
+    @GetMapping("/knowledgePoints")
+    public List<String> getKnowledgePoints(@RequestParam Integer subId) {
+        return questionMapper.selectDistinctKpBySubject(subId);
+    }
+
+    // 按科目和知识点获取所有题目
+    @GetMapping("/practice/all")
+    public List<Question> getAllPracticeQuestions(@RequestParam Integer subjectId,
+                                                  @RequestParam(required = false) String kp) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Question> wrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+
+        wrapper.eq(Question::getQuesSubId, subjectId);
+
+        if (kp != null && !kp.trim().isEmpty()) {
+            wrapper.eq(Question::getQuesKp, kp);
+        }
+
+        return questionMapper.selectList(wrapper);
     }
 }

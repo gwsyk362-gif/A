@@ -14,4 +14,8 @@ public interface QuestionMapper extends BaseMapper<Question> {
     @Select("SELECT ques_id FROM questions WHERE ques_sub_id = #{subjectId} ORDER BY RAND() LIMIT #{limit}")
     List<Integer> selectRandomIdsBySubject(@Param("subjectId") Integer subjectId, @Param("limit") int limit);
 
+    @Select("SELECT DISTINCT ques_kp FROM questions WHERE ques_sub_id = #{subId} AND ques_kp IS NOT NULL AND ques_kp != ''")
+    List<String> selectDistinctKpBySubject(@Param("subId") Integer subId);
+
+
 }

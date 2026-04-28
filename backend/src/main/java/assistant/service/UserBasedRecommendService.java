@@ -1,6 +1,7 @@
 package assistant.service;
 
 import assistant.entity.PracticeRecord;
+import assistant.entity.Question; // ✨ 记得导入 Question 实体
 import assistant.mapper.PracticeRecordMapper;
 import assistant.mapper.QuestionMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -11,7 +12,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-
 public class UserBasedRecommendService {
 
     @Autowired
@@ -19,14 +19,25 @@ public class UserBasedRecommendService {
 
     @Autowired
     private QuestionMapper questionMapper;
+
     /**
      * 推荐题目逻辑
-     * @param targetUserId 目标用户ID
-     * @param recommendCount 推荐数量
-     * @param subjectId 当前科目ID（用于冷启动）
      */
+    public List<Integer> recommendQuestions(Integer targetUserId, int recommendCount, Integer subjectId, String kp) {
+        // ✨ 1. 如果前端传了具体的知识点，我们先获取该知识点下的所有题目 ID
+        Set<Integer> validQuesIds = null;
+        if (kp != null && !kp.trim().isEmpty()) {
+            List<Question> questions = questionMapper.selectList(
+                    new QueryWrapper<Question>().eq("ques_sub_id", subjectId).eq("ques_kp", kp)
+            );
+            validQuesIds = questions.stream().map(Question::getQuesId).collect(Collectors.toSet());
 
-    public List<Integer> recommendQuestions(Integer targetUserId, int recommendCount, Integer subjectId) {
+            // 如果该知识点下连一道题都没有，直接返回空
+            if (validQuesIds.isEmpty()) {
+                return new ArrayList<>();
+            }
+        }
+
         // 获取当前用户的评分向量
         List<PracticeRecord> targetRecords = practiceRecordMapper.selectList(
                 new QueryWrapper<PracticeRecord>().eq("rec_user_id", targetUserId)
@@ -35,8 +46,9 @@ public class UserBasedRecommendService {
         // 判断是否触发冷启动
         if (targetRecords.isEmpty()) {
             System.out.println("User " + targetUserId + " is in cold-start phase.");
-            return recommendByPopularity(subjectId, recommendCount);
+            return recommendByPopularity(subjectId, recommendCount, validQuesIds);
         }
+
         // 非冷启动状态：获取全表数据进行协同过滤计算
         List<PracticeRecord> allRecords = practiceRecordMapper.selectList(null);
         Map<Integer, Map<Integer, Double>> userScores = new HashMap<>();
@@ -45,7 +57,7 @@ public class UserBasedRecommendService {
                     .put(rec.getRecQuesId(), rec.getRecIsCorrect() == 1 ? 5.0 : 1.0);
         }
 
-        Map<Integer, Double> targetUserVector = userScores.get(targetUserId);
+        Map<Integer, Double> targetUserVector = userScores.getOrDefault(targetUserId, new HashMap<>());
 
         // 协同过滤
         Map<Integer, Double> userSimilarities = new HashMap<>();
@@ -55,18 +67,43 @@ public class UserBasedRecommendService {
             userSimilarities.put(otherUserId, sim);
         }
 
-        return userSimilarities.entrySet().stream()
+        // 供 lambda 表达式使用
+        final Set<Integer> finalValidQuesIds = validQuesIds;
+
+        List<Integer> recommended = userSimilarities.entrySet().stream()
                 .sorted(Map.Entry.<Integer, Double>comparingByValue().reversed())
                 .limit(5)
                 .flatMap(entry -> userScores.get(entry.getKey()).keySet().stream())
-                .filter(quesId -> !targetUserVector.containsKey(quesId))
+                .filter(quesId -> !targetUserVector.containsKey(quesId)) // 过滤掉自己已经做过的
+                .filter(quesId -> finalValidQuesIds == null || finalValidQuesIds.contains(quesId)) // ✨ 核心：过滤知识点
                 .distinct()
                 .limit(recommendCount)
                 .collect(Collectors.toList());
+
+        //如果被知识点过滤完，用随机题目补齐
+        if (recommended.size() < recommendCount) {
+            List<Integer> padding = recommendByPopularity(subjectId, recommendCount - recommended.size(), finalValidQuesIds);
+            for (Integer id : padding) {
+                if (!recommended.contains(id) && !targetUserVector.containsKey(id)) {
+                    recommended.add(id);
+                    if (recommended.size() >= recommendCount) break;
+                }
+            }
+        }
+
+        return recommended;
     }
 
-    private List<Integer> recommendByPopularity(Integer subjectId, int count) {
-        // 按热度查找
+    //冷启动
+    private List<Integer> recommendByPopularity(Integer subjectId, int count, Set<Integer> validQuesIds) {
+        // 如果有知识点限制，原有针对全科目的“热度 SQL”就不适用了，直接从满足条件的 ID 里随机抽
+        if (validQuesIds != null) {
+            List<Integer> list = new ArrayList<>(validQuesIds);
+            Collections.shuffle(list);
+            return list.stream().limit(count).collect(Collectors.toList());
+        }
+
+        // 按热度查找（全科目）
         List<Integer> ids = practiceRecordMapper.selectHotQuestionIds(subjectId, count);
 
         // 没人做过 随机抽题
@@ -91,7 +128,8 @@ public class UserBasedRecommendService {
             double diff2 = v2.get(key) - avg2;
 
             numerator += diff1 * diff2;
-            sumSq1 += diff1 * diff1;sumSq2 += diff2 * diff2;
+            sumSq1 += diff1 * diff1;
+            sumSq2 += diff2 * diff2;
         }
 
         if (sumSq1 == 0 || sumSq2 == 0) return 0.0;
