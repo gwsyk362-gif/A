@@ -112,7 +112,7 @@
     }
   });
 
- // 组卷模式 (打上 isPractice: false 标记)
+ // 组卷模式 (isPractice: false)
   const handleGenerate = async () => {
     errorMessage.value = '';
     try {
@@ -126,7 +126,7 @@
     }
   };
 
-  // 练习模式 (打上 isPractice: true 标记)
+  // 练习模式 (isPractice: true)
   // 练习：获取个性化推荐题目
   const handleRecommend = async () => {
     errorMessage.value = '';
