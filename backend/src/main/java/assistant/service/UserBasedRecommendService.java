@@ -104,7 +104,7 @@ public class UserBasedRecommendService {
         }
 
         // 按热度查找（全科目）
-        List<Integer> ids = practiceRecordMapper.selectHotQuestionIds(subjectId, count);
+        List<Integer> ids = questionMapper.selectHotQuestionIds(subjectId, count);
 
         // 没人做过 随机抽题
         if (ids == null || ids.isEmpty()) {
