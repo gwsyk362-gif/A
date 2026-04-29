@@ -52,10 +52,10 @@
 
         <button
           v-if="mode === 'practice'"
-          :disabled="!selectedSubjectId || recommendCount <= 0"
-          @click="handleRecommend"
+          :disabled="!selectedSubjectId"
+          @click="handlePracticeFetch"
         >
-          刷新题目
+          获取题目
         </button>
       </div>
     </div>
@@ -65,7 +65,6 @@
 </template>
 
 <script setup>
-  // ✨ 1. 别忘了从 vue 中导入 watch
   import { ref, onMounted, defineEmits, defineProps, watch } from 'vue';
 
   const props = defineProps({
@@ -76,10 +75,9 @@
   const subjects = ref([]);
   const selectedSubjectId = ref('');
   const questionCount = ref(5);
-  const recommendCount = ref(5);
   const errorMessage = ref('');
 
-  // ✨ 2. 新增的响应式变量，用于存放知识点下拉列表和用户选中的知识点
+  // 知识点相关的响应式变量
   const knowledgePoints = ref([]);
   const selectedKnowledgePoint = ref('');
 
@@ -96,63 +94,58 @@
     }
   };
 
-  // 监听所选科目的变化。一旦换了科目，就拉取对应的知识点
+  // 监听所选科目的变化，拉取对应的知识点
   watch(selectedSubjectId, async (newVal) => {
-    selectedKnowledgePoint.value = ''; // 切换科目时，清空之前选的知识点
-    knowledgePoints.value = []; // 清空旧的知识点列表
+    selectedKnowledgePoint.value = '';
+    knowledgePoints.value = [];
 
     if (!newVal) return;
     try {
       const res = await fetch(`http://localhost:8080/knowledgePoints?subId=${newVal}`);
       if (!res.ok) throw new Error('无法加载知识点');
-      const data = await res.json();
-      knowledgePoints.value = data;
+      knowledgePoints.value = await res.json();
     } catch (err) {
       console.error('获取知识点失败:', err);
     }
   });
 
- // 组卷模式 (isPractice: false)
+  // ====== 组卷模式 ======
   const handleGenerate = async () => {
     errorMessage.value = '';
     try {
       const res = await fetch(`http://localhost:8080/generate?subId=${selectedSubjectId.value}&count=${questionCount.value}`);
       if (!res.ok) throw new Error('生成试卷失败');
       const data = await res.json();
-      // ✨ 加上 isPractice: false
       emit('paper-generated', data.map(q => ({ ...q, userAnswer: '', submitted: false, isPractice: false })));
     } catch (err) {
       errorMessage.value = err.message;
     }
   };
 
-  // 练习模式 (isPractice: true)
-  // 练习：获取个性化推荐题目
-  const handleRecommend = async () => {
+  // ====== 练习模式 ======
+  // 根据科目和知识点获取所有相关题目
+  const handlePracticeFetch = async () => {
     errorMessage.value = '';
     try {
-      // 1. 从 localStorage 获取当前用户的 ID
+      // 检查登录状态
       const savedUser = localStorage.getItem('currentUser');
       if (!savedUser) {
         errorMessage.value = "请先登录";
         return;
       }
-      const user = JSON.parse(savedUser);
-      const userId = user.userId;
 
-      // 2. 调用recommend 接口
-      let url = `http://localhost:8080/recommend?userId=${userId}&count=${recommendCount.value}&subjectId=${selectedSubjectId.value}`;
+      let url = `http://localhost:8080/practice/all?subjectId=${selectedSubjectId.value}`;
 
       if (selectedKnowledgePoint.value) {
+        // kp 参数名和你的后端是一致的，不需要改
         url += `&kp=${encodeURIComponent(selectedKnowledgePoint.value)}`;
       }
 
       const res = await fetch(url);
-      if (!res.ok) throw new Error('获取推荐题目失败');
+      if (!res.ok) throw new Error('获取题目失败');
 
       const data = await res.json();
 
-      // 补充前端所需的状态字段
       emit('recommend-fetched', data.map(q => ({
         ...q,
         userAnswer: '',
@@ -177,16 +170,6 @@
     text-align: center;
   }
 
-  .logout-btn {
-    padding: 4px 10px;
-    background: #ff4d4f;
-    font-size: 12px;
-  }
-
-  .logout-btn:hover {
-    background: #ff7875;
-  }
-
   .config-section {
     display: flex;
     flex-direction: column;
@@ -194,7 +177,6 @@
     margin-top: 30px;
   }
 
-  /* 核心布局：水平居中 */
   .central-row {
     display: flex;
     justify-content: center;
@@ -211,7 +193,7 @@
   label {
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* 标签文字左对齐 */
+    align-items: flex-start;
     font-size: 14px;
     color: #666;
   }

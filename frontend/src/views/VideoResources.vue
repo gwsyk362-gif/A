@@ -15,7 +15,17 @@
           <span class="cover-text">{{ video.vidTitle ? video.vidTitle.charAt(0) : '' }}</span>
         </div>
         <div class="video-info">
-          <h4 class="video-title">{{ video.vidTitle }}</h4>
+          <div class="video-header-row">
+            <h4 class="video-title">{{ video.vidTitle }}</h4>
+            <button
+              class="fav-btn"
+              :class="{ 'is-fav': isFavorited(video.vidId) }"
+              @click.stop="toggleFavorite(video)"
+              title="收藏视频"
+            >
+              {{ isFavorited(video.vidId) ? '★' : '☆' }}
+            </button>
+          </div>
           <p class="video-desc">{{ video.vidDescription }}</p>
         </div>
       </div>
@@ -50,7 +60,7 @@
 
 <script setup>
   import { ref, computed, onMounted, watch } from 'vue';
- import axios from 'axios';
+  import axios from 'axios';
 
    const props = defineProps({
      searchQuery: {
@@ -69,7 +79,6 @@
      });
 
      videoList.value = response.data;
-
    } catch (error) {
      console.error("加载视频失败", error);
    }
@@ -98,6 +107,59 @@
      currentVideo.value = null;
      document.body.style.overflow = '';
    };
+
+  // 获取当前用户ID
+  const getCurrentUserId = () => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (!savedUser) return null;
+    const user = JSON.parse(savedUser);
+    return user.userId;
+  };
+
+// 2. 修改切换收藏的函数
+const toggleFavorite = async (video) => {
+  if (!currentUser.userId) {
+    alert("请先登录");
+    return;
+  }
+
+  const isFav = isFavorited(video.vidId);
+  const url = isFav ? '/favoriteVideos/remove' : '/favoriteVideos/add';
+
+  try {
+    const res = await axios.post(`http://localhost:8080${url}`, {
+      fvUserId: currentUser.userId,
+      fvVidId: video.vidId
+    });
+
+    if (res.data === 'success') {
+      if (isFav) {
+        // 取消收藏成功，前端移除 ID
+        favoritedIds.value = favoritedIds.value.filter(id => id !== video.vidId);
+      } else {
+        // 收藏成功，前端添加 ID
+        favoritedIds.value.push(video.vidId);
+      }
+    }
+  } catch (e) {
+    console.error("操作失败", e);
+  }
+};
+
+  const favoritedIds = ref([]);
+
+onMounted(async () => {
+  if (currentUser.userId) {
+    try {
+      const res = await axios.get(`http://localhost:8080/favoriteVideos/ids?userId=${currentUser.userId}`);
+      favoritedIds.value = res.data; // 这里的 res.data 应该是 List<Integer>
+    } catch (e) {
+      console.error("加载收藏状态失败", e);
+    }
+  }
+  fetchVideos(); // 你原有的获取视频列表方法
+});
+
 </script>
 
 <style scoped>
@@ -321,4 +383,42 @@
       font-size: 16px;
     }
   }
+
+  /* 让标题和星星在一行 */
+.video-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.video-title {
+  /* 覆盖原有的 margin，由父容器控制 */
+  margin: 0;
+  flex: 1;
+}
+
+/* 你提供的收藏按钮样式 */
+.fav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.3em;
+  color: #ccc;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s, transform 0.1s;
+  flex-shrink: 0; /* 防止星星被挤压 */
+}
+
+.fav-btn:hover {
+  transform: scale(1.2);
+  color: #f1c40f;
+}
+
+.fav-btn.is-fav {
+  color: #f1c40f;
+  text-shadow: 0 0 5px rgba(241, 196, 15, 0.3);
+}
 </style>

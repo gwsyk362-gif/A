@@ -14,6 +14,6 @@ public interface FavoriteVideoMapper extends BaseMapper<FavoriteVideo> {
     @Select("SELECT v.* FROM video_resources v " +
             "JOIN favorite_videos fv ON v.vid_id = fv.fv_vid_id " +
             "WHERE fv.fv_user_id = #{userId}")
-    List<VideoResource> selectUserFavoriteVideos(Integer userId);
+    List<VideoResource> getFavoriteVideoDetails(Integer userId);
 
 }

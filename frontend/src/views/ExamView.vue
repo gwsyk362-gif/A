@@ -12,7 +12,17 @@
             <div class="question-title">
               {{ index + 1 }}. {{ question.quesContent }}
             </div>
-            <span v-if="question.quesKp" class="knowledge-tag">{{ question.quesKp }}</span>
+            <div class="header-right">
+              <span v-if="question.quesKp" class="knowledge-tag">{{ question.quesKp }}</span>
+              <button
+                class="fav-btn"
+                :class="{ 'is-fav': isFavorited(question.quesId) }"
+                @click="toggleFavorite(question)"
+                title="收藏题目"
+              >
+                {{ isFavorited(question.quesId) ? '★' : '☆' }}
+              </button>
+            </div>
           </div>
 
           <div class="options-group">
@@ -56,7 +66,17 @@
 
           <div class="question-header">
             <div class="question-title">{{ index + 1 }}. {{ question.quesContent }}</div>
-            <span v-if="question.quesKp" class="knowledge-tag">{{ question.quesKp }}</span>
+            <div class="header-right">
+              <span v-if="question.quesKp" class="knowledge-tag">{{ question.quesKp }}</span>
+              <button
+                class="fav-btn"
+                :class="{ 'is-fav': isFavorited(question.quesId) }"
+                @click="toggleFavorite(question)"
+                title="收藏题目"
+              >
+                {{ isFavorited(question.quesId) ? '★' : '☆' }}
+              </button>
+            </div>
           </div>
 
           <div class="options-group">
@@ -96,20 +116,17 @@
 
         </div>
       </div>
-      <div class="action-bar">
-        <button @click="resetPaper" class="clear-btn">清空当前题目</button>
-      </div>
     </template>
 
   </div>
 
   <div v-else class="empty-state">
-    <p>暂无符合条件的题目，请更换条件重试...</p>
+    <p>暂无符合条件的题目</p>
   </div>
 </template>
 
 <script setup>
-  import { defineProps, defineEmits, computed, ref } from 'vue';
+  import { defineProps, defineEmits, computed, ref, onMounted, watch } from 'vue'; /
   import axios from 'axios';
 
   const props = defineProps({
@@ -121,10 +138,82 @@
 
   const emit = defineEmits(['reset']);
 
-  // ✨ 判断当前是组卷还是练习
+  // 判断当前是组卷还是练习
   const isPracticeMode = computed(() => {
     return props.questions.length > 0 && props.questions[0].isPractice === true;
   });
+
+  const favoriteIds = ref([]); // 存放当前用户已收藏的题目ID
+
+  // 获取当前用户ID
+  const getCurrentUserId = () => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (!savedUser) return null;
+    const user = JSON.parse(savedUser);
+    return user.userId;
+  };
+
+// 加载用户的收藏ID列表
+  const loadFavorites = async () => {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+
+    try {
+      const res = await axios.get(`http://localhost:8080/favoriteQuestions/ids?userId=${userId}`);
+      favoriteIds.value = res.data;
+    } catch (error) {
+      console.error("加载收藏列表失败:", error);
+    }
+  };
+
+
+  // 判断某题是否已收藏
+  const isFavorited = (quesId) => {
+    return favoriteIds.value.includes(quesId);
+  };
+
+  const toggleFavorite = async (question) => {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      alert("请先登录再进行收藏");
+      return;
+    }
+
+    const quesId = question.quesId;
+    const currentlyFavorited = isFavorited(quesId);
+    const url = currentlyFavorited
+      ? 'http://localhost:8080/favoriteQuestions/remove'
+      : 'http://localhost:8080/favoriteQuestions/add';
+
+    const favData = {
+      favUserId: userId,
+      favQuesId: quesId
+    };
+
+    try {
+      // 发送请求给后端
+      await axios.post(url, favData);
+
+      // 前端状态同步
+      if (currentlyFavorited) {
+        // 取消收藏
+        favoriteIds.value = favoriteIds.value.filter(id => id !== quesId);
+      } else {
+        // 添加收藏
+        favoriteIds.value.push(quesId);
+      }
+    } catch (error) {
+      alert("收藏操作失败，请检查网络");
+    }
+  };
+
+  // 当题目列表变化时，重新加载收藏状态
+  watch(() => props.questions, (newQuestions) => {
+    if (newQuestions && newQuestions.length > 0) {
+      loadFavorites();
+    }
+  }, { immediate: true });
+
 
   // ====== 组卷模式 ======
   const showResult = ref(false);
@@ -165,22 +254,18 @@
     if (!question.userAnswer) return;
 
     // 1. 获取当前用户ID
-    const savedUser = localStorage.getItem('currentUser');
-    if (!savedUser) {
+    const userId = getCurrentUserId();
+    if (!userId) {
       alert("登录已过期或未登录，请先登录");
       return;
     }
-
-    // 解析用户信息
-    const user = JSON.parse(savedUser);
-    const currentUserId = user.userId;
 
     // 2. 判题逻辑：比对用户答案与正确答案
     const isCorrect = (question.userAnswer === question.quesAnswer) ? 1 : 0;
 
     // 3. 构造符合 PracticeRecord 实体类的数据结构
     const recordData = {
-      recUserId: currentUserId,
+      recUserId: userId,
       recQuesId: question.quesId,
       recUserAnswer: question.userAnswer,
       recIsCorrect: isCorrect
@@ -227,6 +312,14 @@
     margin-bottom: 0;
     flex: 1;
   }
+
+  .header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
   .knowledge-tag {
     background: #eef4ff;
     color: #3478e5;
@@ -236,6 +329,25 @@
     white-space: nowrap;
     border: 1px solid #d1e3fa;
   }
+
+  .fav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.3em;
+    color: #ccc; /* 默认灰色网格星 */
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s, transform 0.1s;
+  }
+  .fav-btn:hover {
+    transform: scale(1.1);
+    color: #f1c40f; /* 悬停变黄 */
+  }
+  .fav-btn.is-fav {
+    color: #f1c40f; /* 收藏后实心黄星 */
+  }
+
   .option-item {
     margin: 8px 0;
     padding: 10px 14px;
