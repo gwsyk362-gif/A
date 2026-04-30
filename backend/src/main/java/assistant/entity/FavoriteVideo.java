@@ -7,12 +7,12 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("favorite_videos")
+@TableName("favorites_videos")
 public class FavoriteVideo {
-    @TableId(value = "fv_id", type = IdType.AUTO)
-    private Integer fvId;
+    @TableId(value = "fav_id", type = IdType.AUTO)
+    private Integer favId;
 
-    private Integer fvUserId;    // 对应 fv_user_id
-    private Integer fvVidId;     // 对应 fv_vid_id
-    private LocalDateTime fvCreateTime;
+    private Integer favUserId;    // 对应 fv_user_id
+    private Integer favVidsId;     // 对应 fv_vid_id
+    private LocalDateTime favCreateTime;
 }

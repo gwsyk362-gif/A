@@ -1,19 +1,44 @@
 <template>
-  <div class="user-view">
+  <div class="user-center">
+    <div style="margin-bottom: 15px;">
+      <el-button icon="Back" @click="handleBack">返回首页</el-button>
+    </div>
+
     <el-card class="user-info-card">
       <div class="user-profile">
-        <el-avatar :size="80" :src="userInfo.avatarUrl">{{ userInfo.username?.charAt(0) }}</el-avatar>
+        <el-avatar :size="80" :src="userInfo.avatarUrl">
+          {{ String(userInfo.nickname || userInfo.username || 'U').charAt(0) }}
+        </el-avatar>
         <div class="info-text">
-          <h2>{{ userInfo.username }}</h2>
-          <p class="user-bio">{{ userInfo.bio || '这个人很懒，什么都没有留下。' }}</p>
+          <h2>{{ userInfo.nickname || userInfo.username }}</h2>
+          <p class="user-bio">账号：{{ userInfo.username }}</p>
         </div>
       </div>
     </el-card>
 
     <el-tabs v-model="activeTab" class="user-tabs" @tab-click="handleTabClick">
 
+      <el-tab-pane label="收藏题目" name="questions">
+        <el-table :data="favoriteQuestions" style="width: 100%" v-loading="loadingQuestions">
+          <el-table-column prop="quesContent" label="题目内容" show-overflow-tooltip />
+
+          <el-table-column label="科目" width="120">
+            <template #default="scope">
+              {{ getSubjectName(scope.row.quesSubId) }}
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" width="150">
+            <template #default="scope">
+              <el-button size="small" type="primary" @click="openDetail(scope.row)">查看</el-button>
+              <el-button size="small" type="danger" @click="unfavQues(scope.row.quesId)">取消</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
       <el-tab-pane label="收藏视频" name="videos">
-        <div v-loading="loading" class="video-grid">
+        <div v-loading="loadingVideos" class="video-grid">
           <div v-if="favoriteVideos.length === 0" class="empty-state">
             <el-empty description="暂无收藏视频" />
           </div>
@@ -33,21 +58,11 @@
               <h4 class="video-title">{{ video.vidTitle }}</h4>
               <div class="video-footer">
                 <span class="video-time">{{ formatDate(video.vidCreateTime) }}</span>
-                <el-button
-                  type="text"
-                  class="unfav-btn"
-                  @click.stop="unfavVideo(video.vidId)"
-                >
-                  取消收藏
-                </el-button>
+                <el-button type="text" class="unfav-btn" @click.stop="unfavVideo(video.vidId)">取消收藏</el-button>
               </div>
             </div>
           </div>
         </div>
-      </el-tab-pane>
-
-      <el-tab-pane label="我的题目" name="questions">
-        <div class="placeholder-text">题目收藏功能开发中...</div>
       </el-tab-pane>
 
     </el-tabs>
@@ -62,112 +77,146 @@
 
   const router = useRouter();
 
-  // 1. 响应式数据
-  const activeTab = ref('videos');
-  const loading = ref(false);
-  const favoriteVideos = ref([]);
-  const userInfo = ref(JSON.parse(localStorage.getItem('currentUser') || '{}'));
+  // 全局状态
+  const activeTab = ref('questions'); // 默认显示题目
+  const userInfo = ref({});
 
-  // 2. 初始化加载
-  onMounted(() => {
-    if (!userInfo.value.userId) {
-      ElMessage.warning('请先登录');
-      // router.push('/login'); // 根据你的路由配置跳转
-      return;
+  // === 题目相关状态 ===
+  const favoriteQuestions = ref([]);
+  const subjects = ref([]);
+  const loadingQuestions = ref(false);
+
+  // === 视频相关状态 ===
+  const favoriteVideos = ref([]);
+  const loadingVideos = ref(false);
+
+  // ================= 生命周期 =================
+  onMounted(async () => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      userInfo.value = JSON.parse(savedUser);
+
+      // 初始化时加载两个模块的数据
+      await loadSubjects();
+      loadFavoriteQuestions();
+      loadFavoriteVideos();
+    } else {
+      router.push('/login');
     }
-    loadFavoriteVideos();
   });
 
-  // 3. 获取收藏视频详情
-  const loadFavoriteVideos = async () => {
-    loading.value = true;
+  const handleBack = () => router.push('/main');
+
+  // ================= 原有逻辑：题目收藏 =================
+  const loadSubjects = async () => {
     try {
-      // 对应你后端 FavoriteVideoController 中的 @GetMapping("/details")
+      const res = await axios.get('http://localhost:8080/subjects/list'); // 请确保此处是你原本的获取科目接口
+      subjects.value = res.data;
+    } catch (e) {
+      console.error('加载科目失败', e);
+    }
+  };
+
+  const getSubjectName = (subId) => {
+    const sub = subjects.value.find(s => s.subId === subId);
+    return sub ? sub.subName : '未知';
+  };
+
+  const loadFavoriteQuestions = async () => {
+    loadingQuestions.value = true;
+    try {
+      const res = await axios.get(`http://localhost:8080/favoriteQuestions/details?userId=${userInfo.value.userId}`);
+      favoriteQuestions.value = res.data;
+    } catch (e) {
+      console.error('加载收藏题目失败', e);
+    } finally {
+      loadingQuestions.value = false;
+    }
+  };
+
+  const openDetail = (row) => {
+    // 这里填入你原本的题目详情跳转逻辑
+    router.push(`/question/${row.quesId}`);
+  };
+
+  const unfavQues = async (quesId) => {
+    try {
+      const res = await axios.post('http://localhost:8080/favoriteQuestions/remove', {
+        favUserId: userInfo.value.userId,
+        favQuesId: quesId
+      });
+      if (res.data === 'success') {
+        ElMessage.success('已取消收藏题目');
+        favoriteQuestions.value = favoriteQuestions.value.filter(q => q.quesId !== quesId);
+      }
+    } catch (e) {
+      console.error('取消收藏题目失败', e);
+    }
+  };
+
+  // ================= 新增逻辑：视频收藏 =================
+  const loadFavoriteVideos = async () => {
+    loadingVideos.value = true;
+    try {
       const res = await axios.get(`http://localhost:8080/favoriteVideos/details`, {
         params: { userId: userInfo.value.userId }
       });
       favoriteVideos.value = res.data;
     } catch (error) {
-      console.error("加载失败:", error);
-      ElMessage.error('无法获取收藏列表');
+      console.error("加载视频失败:", error);
     } finally {
-      loading.value = false;
+      loadingVideos.value = false;
     }
   };
 
-  // 4. 取消收藏逻辑
   const unfavVideo = async (vidId) => {
     try {
-      await ElMessageBox.confirm('确定要取消收藏这个视频吗？', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      });
-
+      await ElMessageBox.confirm('确定要取消收藏这个视频吗？', '提示', { type: 'warning' });
       const res = await axios.post(`http://localhost:8080/favoriteVideos/remove`, {
-        fvUserId: userInfo.value.userId,
-        fvVidId: vidId
+        favUserId: userInfo.value.userId,
+        favVidsId: vidId
       });
-
       if (res.data === 'success') {
         ElMessage.success('已取消收藏');
-        // 前端直接过滤掉，不需要重新刷接口
         favoriteVideos.value = favoriteVideos.value.filter(v => v.vidId !== vidId);
       }
     } catch (error) {
-      if (error !== 'cancel') {
-        ElMessage.error('操作失败');
-      }
+      if (error !== 'cancel') ElMessage.error('操作失败');
     }
   };
 
-  // 5. 跳转逻辑
   const goToVideo = (video) => {
-    // 跳转到播放页面的逻辑，可根据实际情况修改
     router.push({ name: 'VideoPlayer', params: { id: video.vidId } });
   };
 
-  // 6. 辅助工具
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString();
   };
 
   const handleTabClick = (tab) => {
-    if (tab.paneName === 'videos') {
+    if (tab.paneName === 'videos' && favoriteVideos.value.length === 0) {
       loadFavoriteVideos();
+    } else if (tab.paneName === 'questions' && favoriteQuestions.value.length === 0) {
+      loadFavoriteQuestions();
     }
   };
 </script>
 
 <style scoped>
-  .user-view {
-    max-width: 1200px;
-    margin: 20px auto;
-    padding: 0 20px;
-  }
-
-  .user-info-card {
-    margin-bottom: 20px;
-    border-radius: 12px;
-  }
+  /* 原有的基础布局样式 */
+  .user-center { padding: 20px; max-width: 1000px; margin: 0 auto; }
+  .user-info-card { margin-bottom: 20px; border-radius: 12px; }
 
   .user-profile {
     display: flex;
     align-items: center;
     gap: 20px;
   }
+  .info-text h2 { margin: 0 0 8px 0; }
+  .user-bio { color: #666; font-size: 14px; }
 
-  .info-text h2 {
-    margin: 0 0 8px 0;
-  }
-
-  .user-bio {
-    color: #666;
-    font-size: 14px;
-  }
-
-  /* 视频网格布局 */
+  /* 视频网格布局 (新增的) */
   .video-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -221,19 +270,10 @@
     transition: opacity 0.3s;
   }
 
-  .video-cover-wrapper:hover .play-overlay {
-    opacity: 1;
-  }
+  .video-cover-wrapper:hover .play-overlay { opacity: 1; }
+  .play-overlay i { font-size: 40px; color: #fff; }
 
-  .play-overlay i {
-    font-size: 40px;
-    color: #fff;
-  }
-
-  .video-info {
-    padding: 12px;
-  }
-
+  .video-info { padding: 12px; }
   .video-title {
     margin: 0 0 10px 0;
     font-size: 16px;
@@ -247,17 +287,7 @@
     justify-content: space-between;
     align-items: center;
   }
-
-  .video-time {
-    font-size: 12px;
-    color: #999;
-  }
-
-  .unfav-btn {
-    color: #f56c6c;
-  }
-
-  .unfav-btn:hover {
-    color: #ff4949;
-  }
+  .video-time { font-size: 12px; color: #999; }
+  .unfav-btn { color: #f56c6c; }
+  .unfav-btn:hover { color: #ff4949; }
 </style>

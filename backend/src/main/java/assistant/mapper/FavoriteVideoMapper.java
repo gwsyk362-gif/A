@@ -12,8 +12,8 @@ import java.util.List;
 public interface FavoriteVideoMapper extends BaseMapper<FavoriteVideo> {
 
     @Select("SELECT v.* FROM video_resources v " +
-            "JOIN favorite_videos fv ON v.vid_id = fv.fv_vid_id " +
-            "WHERE fv.fv_user_id = #{userId}")
+            "JOIN favorites_videos fv ON v.vid_id = fv.fav_vids_id " +
+            "WHERE fv.fav_user_id = #{userId}")
     List<VideoResource> getFavoriteVideoDetails(Integer userId);
 
 }

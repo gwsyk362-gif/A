@@ -59,8 +59,9 @@
 </template>
 
 <script setup>
-  import { ref, computed, onMounted, watch } from 'vue';
-  import axios from 'axios';
+  import { defineProps, defineEmits, computed, ref, onMounted, watch } from 'vue';
+   import axios from 'axios';
+   import { ElMessage } from 'element-plus';
 
    const props = defineProps({
      searchQuery: {
@@ -72,27 +73,97 @@
    const videoList = ref([]);
    const loading = ref(false);
 
-  const fetchVideos = async () => {
-   try {
-     const response = await axios.get('/api/videos/list', {
-       params: { keyword: props.searchQuery }
-     });
+   // === 1. 收藏相关响应式状态 ===
+  // 获取当前用户ID
+  const getCurrentUserId = () => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (!savedUser) return null;
+    const user = JSON.parse(savedUser);
+    return user.userId;
+  };
 
-     videoList.value = response.data;
-   } catch (error) {
-     console.error("加载视频失败", error);
-   }
- };
+   const favoritedIds = ref([]);
 
-   onMounted(fetchVideos);
+   // 判断视频是否被收藏
+   const isFavorited = (vidId) => {
+     return favoritedIds.value.includes(vidId);
+   };
 
-   // 监听搜索框变化
+   // === 2. 核心网络请求 ===
+   // 获取视频列表
+   const fetchVideos = async () => {
+     try {
+       const response = await axios.get('/api/videos/list', {
+         params: { keyword: props.searchQuery }
+       });
+       videoList.value = response.data;
+     } catch (error) {
+       console.error("加载视频失败", error);
+     }
+   };
+
+   // 获取用户收藏的视频ID列表
+const fetchFavoriteIds = async () => {
+     const userId = getCurrentUserId(); // 1. 调用函数获取 userId
+     if (userId) { // 2. 判断 userId 是否存在
+       try {
+         const res = await axios.get(`http://localhost:8080/favoriteVideos/ids?userId=${userId}`);
+         favoritedIds.value = res.data;
+       } catch (e) {
+         console.error("加载收藏状态失败", e);
+       }
+     }
+   };
+
+   // 切换收藏/取消收藏
+   const toggleFavorite = async (video) => {
+     const userId = getCurrentUserId(); // 1. 调用函数获取 userId
+
+     // 2. 判断是否登录
+     if (!userId) {
+       ElMessage.warning("请先登录后再操作");
+       return;
+     }
+
+     const isFav = isFavorited(video.vidId);
+     const url = isFav ? '/favoriteVideos/remove' : '/favoriteVideos/add';
+
+     try {
+       const res = await axios.post(`http://localhost:8080${url}`, {
+         favUserId: userId, // 3. 这里使用刚刚获取到的 userId
+         favVidsId: video.vidId
+       });
+
+       if (res.data === 'success') {
+         if (isFav) {
+           favoritedIds.value = favoritedIds.value.filter(id => id !== video.vidId);
+           ElMessage.success("已取消收藏");
+         } else {
+           favoritedIds.value.push(video.vidId);
+           ElMessage.success("收藏成功");
+         }
+       } else if (res.data === 'already exists') {
+         ElMessage.warning("您已经收藏过该视频了");
+       } else {
+         ElMessage.error("操作失败，请稍后再试");
+       }
+     } catch (e) {
+       console.error("后台报错详细信息:", e);
+       ElMessage.error("网络请求失败，请按 F12 查看控制台报错");
+     }
+   };
+
+   // === 3. 生命周期与监听 ===
+   onMounted(() => {
+     fetchVideos();       // 加载视频大厅
+     fetchFavoriteIds();  // 加载当前用户的收藏点亮状态
+   });
+
    watch(() => props.searchQuery, () => {
      fetchVideos();
    });
 
-
-   // 模态框状态
+   // === 4. 模态框逻辑 ===
    const showModal = ref(false);
    const currentVideo = ref(null);
 
@@ -107,59 +178,6 @@
      currentVideo.value = null;
      document.body.style.overflow = '';
    };
-
-  // 获取当前用户ID
-  const getCurrentUserId = () => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (!savedUser) return null;
-    const user = JSON.parse(savedUser);
-    return user.userId;
-  };
-
-// 2. 修改切换收藏的函数
-const toggleFavorite = async (video) => {
-  if (!currentUser.userId) {
-    alert("请先登录");
-    return;
-  }
-
-  const isFav = isFavorited(video.vidId);
-  const url = isFav ? '/favoriteVideos/remove' : '/favoriteVideos/add';
-
-  try {
-    const res = await axios.post(`http://localhost:8080${url}`, {
-      fvUserId: currentUser.userId,
-      fvVidId: video.vidId
-    });
-
-    if (res.data === 'success') {
-      if (isFav) {
-        // 取消收藏成功，前端移除 ID
-        favoritedIds.value = favoritedIds.value.filter(id => id !== video.vidId);
-      } else {
-        // 收藏成功，前端添加 ID
-        favoritedIds.value.push(video.vidId);
-      }
-    }
-  } catch (e) {
-    console.error("操作失败", e);
-  }
-};
-
-  const favoritedIds = ref([]);
-
-onMounted(async () => {
-  if (currentUser.userId) {
-    try {
-      const res = await axios.get(`http://localhost:8080/favoriteVideos/ids?userId=${currentUser.userId}`);
-      favoritedIds.value = res.data; // 这里的 res.data 应该是 List<Integer>
-    } catch (e) {
-      console.error("加载收藏状态失败", e);
-    }
-  }
-  fetchVideos(); // 你原有的获取视频列表方法
-});
-
 </script>
 
 <style scoped>
