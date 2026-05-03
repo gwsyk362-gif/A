@@ -126,7 +126,7 @@
 </template>
 
 <script setup>
-  import { defineProps, defineEmits, computed, ref, onMounted, watch } from 'vue';
+  import {  computed, ref, onMounted, watch } from 'vue';
   import axios from 'axios';
 
   const props = defineProps({
