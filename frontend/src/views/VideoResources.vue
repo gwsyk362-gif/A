@@ -163,20 +163,72 @@ const fetchFavoriteIds = async () => {
      fetchVideos();
    });
 
-   // === 4. 模态框逻辑 ===
+  // === 4. 模态框与进度记录逻辑 ===
    const showModal = ref(false);
    const currentVideo = ref(null);
 
+   // 新增：进度相关的状态
+   const currentPosition = ref(0); // 记录观看了多少秒
+   let watchTimer = null; // 计时器
+
+   // 打开视频弹窗
    const openVideo = (video) => {
      currentVideo.value = video;
      showModal.value = true;
      document.body.style.overflow = 'hidden';
+
+     // 每次打开新视频，重置观看秒数，并启动计时器
+     currentPosition.value = 0;
+     startWatchTimer();
    };
 
+   // 关闭视频弹窗
    const closeModal = () => {
+     // 关闭前，先保存一次进度到后端
+     saveProgressToBackend();
+
+     // 停止计时器，清理状态
+     stopWatchTimer();
      showModal.value = false;
      currentVideo.value = null;
      document.body.style.overflow = '';
+   };
+
+   // 启动计时器：每秒钟将观看时间 +1
+   const startWatchTimer = () => {
+     if (watchTimer) clearInterval(watchTimer);
+     watchTimer = setInterval(() => {
+       currentPosition.value += 1;
+     }, 1000);
+   };
+
+   // 停止计时器
+   const stopWatchTimer = () => {
+     if (watchTimer) {
+       clearInterval(watchTimer);
+       watchTimer = null;
+     }
+   };
+
+   // 核心逻辑：将进度保存到后端
+   const saveProgressToBackend = async () => {
+     const userId = getCurrentUserId();
+     // 如果没登录，或者没看视频（秒数为0），就不保存
+     if (!userId || !currentVideo.value || currentPosition.value === 0) return;
+
+     try {
+       await axios.post('http://localhost:8080/videoProgress/save', {
+         progUserId: userId,
+         progVidId: currentVideo.value.vidId,
+         progLastPosition: currentPosition.value,
+         // 因为 iframe 无法知道视频是否真的放完了，这里统一传 0（未完结）
+         // 这样这个视频就会一直出现在"继续学习"的列表里，直到用户手动取消收藏或其他操作
+         progIsFinished: 0
+       });
+       console.log(`已保存进度：${currentPosition.value}秒`);
+     } catch (error) {
+       console.error("保存视频进度失败", error);
+     }
    };
 </script>
 

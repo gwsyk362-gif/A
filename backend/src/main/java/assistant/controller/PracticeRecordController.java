@@ -30,4 +30,19 @@ public class PracticeRecordController {
             return ResponseEntity.status(500).body("保存记录失败");
         }
     }
+
+    @GetMapping("/stats/knowledge")
+    public ResponseEntity<?> getKnowledgeMastery(@RequestParam Integer userId) {
+        return ResponseEntity.ok(practiceRecordService.getKnowledgeMastery(userId));
+    }
+
+    @GetMapping("/stats/daily")
+    public ResponseEntity<?> getDailyStats(@RequestParam Integer userId) {
+        return ResponseEntity.ok(practiceRecordService.getDailyStats(userId));
+    }
+
+    @GetMapping("/errors")
+    public ResponseEntity<?> getErrorRecords(@RequestParam Integer userId) {
+        return ResponseEntity.ok(practiceRecordService.getErrorRecords(userId));
+    }
 }
