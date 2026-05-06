@@ -55,7 +55,8 @@
           </el-table-column>
           <el-table-column label="操作" width="150">
             <template #default="scope">
-              <el-button size="small" type="primary" @click="openDetail(scope.row)">查看</el-button>
+              <!-- 修改：传入 scope.row 以及来源类型 'fav' -->
+              <el-button size="small" type="primary" @click="openDetail(scope.row, 'fav')">查看</el-button>
               <el-button size="small" type="danger" @click="unfavQues(scope.row.quesId)">取消</el-button>
             </template>
           </el-table-column>
@@ -75,21 +76,22 @@
           </el-table-column>
           <el-table-column label="操作" width="100">
             <template #default="scope">
-              <el-button size="small" type="primary" @click="openDetail({quesId: scope.row.quesId})">重做</el-button>
+              <!-- 修改：传入完整的 scope.row 以及来源类型 'error' -->
+              <el-button size="small" type="primary" @click="openDetail(scope.row, 'error')">查看详情</el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
-      <!-- 4. 继续学习 -->
-      <el-tab-pane label="继续学习" name="recentVideo">
+      <!-- 4. 观看历史 -->
+      <el-tab-pane label="观看历史" name="recentVideo">
         <div v-loading="loadingRecentVideo" class="video-grid">
           <div v-if="recentVideos.length === 0" class="empty-state">
-            <el-empty description="太棒了，没有未看完的视频！" />
+            <el-empty description="无观看历史" />
           </div>
           <div v-for="video in recentVideos" :key="video.vidId" class="video-card" @click="openVideo(video)">
             <div class="video-cover-wrapper">
-              <img v-if="video.vidCoverUrl" :src="video.vidCoverUrl" class="video-cover" />
+              <img v-if="video.vidCoverUrl" :src="'http://localhost:8080' + video.vidCoverUrl" class="video-cover" />
               <div v-else class="placeholder-cover">
                 <span>{{ video.vidTitle?.charAt(0) }}</span>
               </div>
@@ -101,6 +103,7 @@
                 <i class="el-icon-video-play"></i>
               </div>
             </div>
+
             <div class="video-info">
               <h4 class="video-title">{{ video.vidTitle }}</h4>
               <div class="video-footer">
@@ -119,7 +122,7 @@
           </div>
           <div v-for="video in favoriteVideos" :key="video.vidId" class="video-card" @click="openVideo(video)">
             <div class="video-cover-wrapper">
-              <img v-if="video.vidCoverUrl" :src="video.vidCoverUrl" class="video-cover" />
+              <img v-if="video.vidCoverUrl" :src="'http://localhost:8080' + video.vidCoverUrl" class="video-cover" />
               <div v-else class="placeholder-cover">
                 <span>{{ video.vidTitle?.charAt(0) }}</span>
               </div>
@@ -139,6 +142,42 @@
       </el-tab-pane>
 
     </el-tabs>
+
+    <!-- 题目详情卡片弹窗 -->
+    <el-dialog v-model="showQuestionModal" title="题目详情" width="500px" custom-class="question-dialog" destroy-on-close>
+      <div v-if="currentQuestion" class="question-card-detail">
+        <div class="q-title">
+          <span class="q-tag" v-if="currentQuestion.quesKp">{{ currentQuestion.quesKp }}</span>
+          {{ currentQuestion.quesContent }}
+        </div>
+
+        <div class="q-options" v-if="currentQuestion.quesOptions">
+          <div
+            v-for="(opt, index) in formatOptions(currentQuestion.quesOptions)"
+            :key="index"
+            class="q-option-item"
+            :class="{
+              'is-correct': getOptionLetter(opt) === currentQuestion.quesAnswer,
+              'is-error': currentQuestionType === 'error' && currentQuestion.recUserAnswer && getOptionLetter(opt) === currentQuestion.recUserAnswer
+            }"
+          >
+            {{ opt }}
+          </div>
+        </div>
+
+        <div class="q-analysis">
+          <div class="ans-row correct-ans">
+            <strong>正确答案：</strong> {{ currentQuestion.quesAnswer }}
+          </div>
+          <div class="ans-row user-ans" v-if="currentQuestionType === 'error'">
+            <strong>你的错答：</strong> {{ currentQuestion.recUserAnswer }}
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showQuestionModal = false" type="primary">我知道了</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 视频播放模态框 (增强版：支持续播) -->
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
@@ -456,8 +495,30 @@ const openVideo = (video) => {
     }
   };
 
-  const openDetail = (row) => {
-    router.push(`/question/${row.quesId}`);
+// === 题目详情弹窗逻辑 ===
+  const showQuestionModal = ref(false);
+  const currentQuestion = ref(null);
+  const currentQuestionType = ref('fav'); // 区分是 'fav'(收藏) 还是 'error'(错题)
+
+  // 格式化选项 (复用主界面逻辑)
+  const formatOptions = (optionsStr) => {
+    if (!optionsStr) return [];
+    const cleanStr = optionsStr.replace(/\s+/g, ' ').trim() + " ";
+    const regex = /[A-D][\.．、\s][\s\S]*?(?=[A-D][\.．、\s]|$)/g;
+    const matches = cleanStr.match(regex);
+    return matches ? matches.map(o => o.trim()).filter(o => o.length > 2) : [];
+  };
+
+  // 提取选项字母 (复用主界面逻辑)
+  const getOptionLetter = (optText) => {
+    return optText.trim().charAt(0).toUpperCase();
+  };
+
+  // 打开题目详情 (替换了原先的 router.push 页面跳转)
+  const openDetail = (row, type = 'fav') => {
+    currentQuestion.value = row;
+    currentQuestionType.value = type;
+    showQuestionModal.value = true;
   };
 
   const unfavQues = async (quesId) => {
@@ -688,4 +749,66 @@ const openVideo = (video) => {
   }
   .video-description { margin-top: 16px; font-size: 14px; color: #4e555e; line-height: 1.5; }
   .no-video { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; }
+
+  /* === 题目详情弹窗卡片样式 === */
+  .question-card-detail {
+    padding: 10px 5px;
+  }
+  .q-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    line-height: 1.6;
+    color: #18191c;
+  }
+  .q-tag {
+    display: inline-block;
+    background: #eef4ff;
+    color: #3478e5;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 8px;
+    font-weight: normal;
+    vertical-align: text-bottom;
+  }
+  .q-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .q-option-item {
+    padding: 12px 16px;
+    border: 1px solid #ebeef5;
+    border-radius: 8px;
+    background: #fafafa;
+    font-size: 14px;
+    color: #606266;
+    transition: all 0.2s;
+  }
+  /* 自动高亮正确答案 */
+  .q-option-item.is-correct {
+    background: #f0f9eb;
+    border-color: #67c23a;
+    color: #67c23a;
+    font-weight: bold;
+  }
+  /* 如果是错题，自动标红用户选错的答案 */
+  .q-option-item.is-error {
+    background: #fef0f0;
+    border-color: #f56c6c;
+    color: #f56c6c;
+  }
+  .q-analysis {
+    margin-top: 15px;
+    padding-top: 18px;
+    border-top: 1px dashed #ebeef5;
+  }
+  .ans-row {
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .correct-ans { color: #67c23a; }
+  .user-ans { color: #f56c6c; }
 </style>

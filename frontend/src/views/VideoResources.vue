@@ -11,8 +11,16 @@
         @click="openVideo(video)"
       >
         <div class="video-cover">
+          <img
+            v-if="video.vidCoverUrl"
+            :src="'http://localhost:8080' + video.vidCoverUrl"
+            class="real-cover"
+          />
+          <span v-else class="cover-text">
+    {{ video.vidTitle ? video.vidTitle.charAt(0) : '' }}
+  </span>
+
           <span class="play-icon">▶️</span>
-          <span class="cover-text">{{ video.vidTitle ? video.vidTitle.charAt(0) : '' }}</span>
         </div>
         <div class="video-info">
           <div class="video-header-row">
@@ -269,11 +277,22 @@ const fetchFavoriteIds = async () => {
     color: white;
   }
 
+  .real-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+  }
+
   .play-icon {
     position: absolute;
     font-size: 36px;
     opacity: 0.8;
     transition: opacity 0.2s;
+    z-index: 2; /* 确保显示在图片上方 */
   }
 
   .video-card:hover .play-icon {
@@ -285,6 +304,7 @@ const fetchFavoriteIds = async () => {
     font-size: 48px;
     font-weight: 600;
     opacity: 0.9;
+    z-index: 2;
   }
 
   .video-info {

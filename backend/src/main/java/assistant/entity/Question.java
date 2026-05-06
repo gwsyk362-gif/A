@@ -23,5 +23,7 @@ public class Question {
     private String quesAnalysis;
 
     private String quesKp;
+
+    private Integer quesScore;
     
 }

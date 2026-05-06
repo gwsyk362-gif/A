@@ -12,7 +12,7 @@ import java.util.Map;
 @Mapper
 public interface PracticeRecordMapper extends BaseMapper<PracticeRecord> {
 
-    // 1. 查询知识点掌握情况 (按科目分类，包含所有知识点)
+    // 查询知识点掌握情况 (按科目分类，包含所有知识点)
     @Select("SELECT q.ques_sub_id AS subId, q.ques_kp AS kpName, " +
             "IFNULL(ROUND(AVG(r.rec_is_correct) * 100, 2), 0) AS correctRate " +
             "FROM questions q " +
@@ -21,7 +21,7 @@ public interface PracticeRecordMapper extends BaseMapper<PracticeRecord> {
             "GROUP BY q.ques_sub_id, q.ques_kp")
     List<Map<String, Object>> getKnowledgeMastery(@Param("userId") Integer userId);
 
-    // 2. 查询近7天每日做题数量与正确率
+    // 查询近7天每日做题数量与正确率
     @Select("SELECT DATE(rec_time) AS dateStr, COUNT(rec_id) AS totalCount, " +
             "ROUND(SUM(rec_is_correct) / COUNT(rec_id) * 100, 2) AS correctRate " +
             "FROM practice_records " +
@@ -29,7 +29,7 @@ public interface PracticeRecordMapper extends BaseMapper<PracticeRecord> {
             "GROUP BY DATE(rec_time) ORDER BY dateStr ASC")
     List<Map<String, Object>> getDailyStats(@Param("userId") Integer userId);
 
-    // 3. 获取错题本详情 (关联题目表)
+    // 获取错题本详情 (关联题目表)
     @Select("SELECT q.ques_id as quesId, q.ques_content as quesContent, q.ques_options as quesOptions, " +
             "q.ques_answer as quesAnswer, q.ques_analysis as quesAnalysis, " +
             "r.rec_user_answer as recUserAnswer, r.rec_time as recTime " +

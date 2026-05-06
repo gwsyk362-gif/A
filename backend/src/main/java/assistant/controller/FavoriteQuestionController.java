@@ -18,7 +18,7 @@ public class FavoriteQuestionController {
     @Autowired
     private FavoriteQuestionService favoriteQuestionService;
 
-    // 获取用户所有收藏的题目ID列表（用于前端界面初始化小星星状态）
+    // 获取用户所有收藏的题目ID列表
     @GetMapping("/ids")
     public List<Integer> getFavoriteIds(@RequestParam Integer userId) {
         QueryWrapper<FavoriteQuestion> queryWrapper = new QueryWrapper<>();
@@ -55,7 +55,6 @@ public class FavoriteQuestionController {
 
     @GetMapping("/details")
     public List<Question> getFavoriteQuestionDetails(@RequestParam Integer userId) {
-        // 直接调用 Service 层封装好的方法
         return favoriteQuestionService.getFavoriteQuestionDetails(userId);
     }
 }

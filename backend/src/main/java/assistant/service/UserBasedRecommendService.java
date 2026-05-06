@@ -67,7 +67,6 @@ public class UserBasedRecommendService {
             userSimilarities.put(otherUserId, sim);
         }
 
-        // 供 lambda 表达式使用
         final Set<Integer> finalValidQuesIds = validQuesIds;
 
         List<Integer> recommended = userSimilarities.entrySet().stream()
@@ -75,7 +74,7 @@ public class UserBasedRecommendService {
                 .limit(5)
                 .flatMap(entry -> userScores.get(entry.getKey()).keySet().stream())
                 .filter(quesId -> !targetUserVector.containsKey(quesId)) // 过滤掉自己已经做过的
-                .filter(quesId -> finalValidQuesIds == null || finalValidQuesIds.contains(quesId)) // ✨ 核心：过滤知识点
+                .filter(quesId -> finalValidQuesIds == null || finalValidQuesIds.contains(quesId))
                 .distinct()
                 .limit(recommendCount)
                 .collect(Collectors.toList());
