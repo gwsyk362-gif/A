@@ -45,4 +45,15 @@ public class PracticeRecordController {
     public ResponseEntity<?> getErrorRecords(@RequestParam Integer userId) {
         return ResponseEntity.ok(practiceRecordService.getErrorRecords(userId));
     }
+
+    @GetMapping("/stats/yearly")
+    public ResponseEntity<?> getYearlyStats(@RequestParam Integer userId) {
+        return ResponseEntity.ok(practiceRecordService.getYearlyStats(userId));
+    }
+
+    @GetMapping("/stats/coverage")
+    public ResponseEntity<?> getSubjectCoverage(@RequestParam Integer userId) {
+        return ResponseEntity.ok(practiceRecordService.getSubjectCoverage(userId));
+    }
+
 }

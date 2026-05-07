@@ -2,6 +2,7 @@ package assistant.service.impl;
 
 import assistant.entity.PracticeRecord;
 import assistant.entity.Question;
+import assistant.entity.SubjectCoverageDTO;
 import assistant.entity.UserSubjectScore;
 import assistant.mapper.PracticeRecordMapper;
 import assistant.mapper.QuestionMapper;
@@ -9,6 +10,7 @@ import assistant.mapper.UserSubjectScoreMapper;
 import assistant.service.PracticeRecordService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -105,4 +107,12 @@ public class PracticeRecordServiceimpl extends ServiceImpl<PracticeRecordMapper,
     public List<Map<String, Object>> getErrorRecords(Integer userId) {
         return baseMapper.getErrorRecords(userId);
     }
+
+    @Override
+    public List<Map<String, Object>> getYearlyStats(Integer userId) {
+        return baseMapper.getYearlyStats(userId);
+    }
+
+    @Override
+    public List<SubjectCoverageDTO> getSubjectCoverage(Integer userId) {return baseMapper.getSubjectCoverage(userId);}
 }

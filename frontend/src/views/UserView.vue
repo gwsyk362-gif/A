@@ -42,6 +42,26 @@
             <div ref="lineChartRef" class="chart-box"></div>
           </el-card>
         </div>
+
+        <el-card class="chart-card" shadow="hover" v-loading="loadingStats" style="width: 100%; margin-top: 20px;">
+          <template #header>
+            <div class="card-header">
+              <span>全年学习活跃度</span>
+            </div>
+          </template>
+          <div ref="heatmapChartRef" class="chart-box" style="height: 250px;"></div>
+        </el-card>
+
+        <el-card class="chart-card" shadow="hover" style="width: 100%; margin-top: 20px;">
+          <template #header>
+            <div class="card-header">
+              <span>各科目知识点覆盖率</span>
+            </div>
+          </template>
+          <div ref="coverageChartRef" class="chart-box" style="height: 300px;"></div>
+        </el-card>
+
+
       </el-tab-pane>
 
       <!-- 2. 收藏题目 -->
@@ -249,11 +269,17 @@
   const recentVideos = ref([]);
   const loadingRecentVideo = ref(false);
 
-  // === 图表状态 ===
+  // === 图表状态与引用 ===
   const radarChartRef = ref(null);
   const lineChartRef = ref(null);
+  const heatmapChartRef = ref(null);
+  const coverageChartRef = ref(null);
+
   let radarChart = null;
   let lineChart = null;
+  let heatmapChart = null;
+  let coverageChart = null;
+
   const loadingStats = ref(false);
   const rawKnowledgeData = ref([]);
   const selectedSubjectForChart = ref(null);
@@ -273,123 +299,152 @@
 
   // === 标签页切换 ===
   const handleTabClick = async (tab) => {
-    if (tab.paneName === 'videos' && favoriteVideos.value.length === 0) {
-      loadFavoriteVideos();
-    } else if (tab.paneName === 'questions' && favoriteQuestions.value.length === 0) {
-      loadFavoriteQuestions();
-    } else if (tab.paneName === 'errors' && errorRecords.value.length === 0) {
-      loadErrorRecords();
-    } else if (tab.paneName === 'recentVideo' && recentVideos.value.length === 0) {
-      loadRecentVideos();
-    } else if (tab.paneName === 'statistics') {
+    const name = tab.paneName;
+    if (name === 'videos' && favoriteVideos.value.length === 0) loadFavoriteVideos();
+    else if (name === 'questions' && favoriteQuestions.value.length === 0) loadFavoriteQuestions();
+    else if (name === 'errors' && errorRecords.value.length === 0) loadErrorRecords();
+    else if (name === 'recentVideo' && recentVideos.value.length === 0) loadRecentVideos();
+    else if (name === 'statistics') {
       await nextTick();
-      if (!radarChart || !lineChart) loadStatisticsData();
+      if (!radarChart) loadStatisticsData();
     }
   };
 
   const handleBack = () => router.push('/main');
 
-  // === 图表逻辑 ===
+  // === 【核心】数据统计加载逻辑 ===
   const loadStatisticsData = async () => {
     loadingStats.value = true;
     await nextTick();
 
+    // 1. 初始化所有图表实例
     if (!radarChart) radarChart = echarts.init(radarChartRef.value);
     if (!lineChart) lineChart = echarts.init(lineChartRef.value);
+    if (!heatmapChart) heatmapChart = echarts.init(heatmapChartRef.value);
+    if (!coverageChart) coverageChart = echarts.init(coverageChartRef.value);
 
     try {
-      const radarRes = await axios.get(`http://localhost:8080/records/stats/knowledge?userId=${userInfo.value.userId}`);
-      rawKnowledgeData.value = radarRes.data;
+      const userId = userInfo.value.userId;
 
+      // 并行请求四个统计接口
+      const [radarRes, lineRes, yearlyRes, coverageRes] = await Promise.all([
+        axios.get(`http://localhost:8080/records/stats/knowledge?userId=${userId}`),
+        axios.get(`http://localhost:8080/records/stats/daily?userId=${userId}`),
+        axios.get(`http://localhost:8080/records/stats/yearly?userId=${userId}`),
+        axios.get(`http://localhost:8080/records/stats/coverage?userId=${userId}`)
+      ]);
+
+      // A. 雷达图：知识点掌握情况
+      rawKnowledgeData.value = radarRes.data;
       if (rawKnowledgeData.value.length > 0) {
-         selectedSubjectForChart.value = rawKnowledgeData.value[0].subId;
-         updateRadarChart();
+        selectedSubjectForChart.value = rawKnowledgeData.value[0].subId;
+        updateRadarChart();
       }
 
-      const lineRes = await axios.get(`http://localhost:8080/records/stats/daily?userId=${userInfo.value.userId}`);
+      // B. 折线+柱形图：近7日统计
       const dailyData = lineRes.data;
-      const dates = dailyData.map(d => d.dateStr);
-      const counts = dailyData.map(d => d.totalCount);
-      const rates = dailyData.map(d => d.correctRate);
-
       lineChart.setOption({
         tooltip: { trigger: 'axis' },
         legend: { data: ['做题数量', '正确率(%)'] },
-        xAxis: { type: 'category', data: dates },
+        xAxis: { type: 'category', data: dailyData.map(d => d.dateStr) },
         yAxis: [
-            { type: 'value', name: '做题数量', minInterval: 1 },
-            { type: 'value', name: '正确率', max: 100, axisLabel: { formatter: '{value} %' } }
+          { type: 'value', name: '做题数量', minInterval: 1 },
+          { type: 'value', name: '正确率', max: 100, axisLabel: { formatter: '{value} %' } }
         ],
         series: [
-            { name: '做题数量', type: 'bar', data: counts, itemStyle: { color: '#E6A23C' } },
-            { name: '正确率(%)', type: 'line', yAxisIndex: 1, data: rates, smooth: true, itemStyle: { color: '#67C23A' } }
+          { name: '做题数量', type: 'bar', data: dailyData.map(d => d.totalCount), itemStyle: { color: '#E6A23C' } },
+          { name: '正确率(%)', type: 'line', yAxisIndex: 1, data: dailyData.map(d => d.correctRate), smooth: true, itemStyle: { color: '#67C23A' } }
         ]
       });
+
+      // C. 热力图：全年活跃度
+      const heatmapData = yearlyRes.data.map(d => [d.dateStr, d.totalCount]);
+      const maxCount = heatmapData.length > 0 ? Math.max(...heatmapData.map(d => d[1])) : 20;
+      const visualMax = Math.ceil(maxCount / 10) * 10 || 20;
+      heatmapChart.setOption({
+        tooltip: {
+          formatter: (p) => `${p.data[0]} : ${p.data[1]} 题`
+        },
+        visualMap: {
+          min: 0, max:maxCount , calculable: true, orient: 'horizontal', left: 'center', bottom: '5%',
+          text: [`上限 (≤ ${visualMax})`, `下限 (≥ 0)`],
+          textStyle: { color: '#666', fontSize: 12 },
+          inRange: { color: ['#ebedf0', '#c6e48b', '#7bc96f', '#239a3b', '#196127'] }
+        },
+        calendar: {
+          top: 30, left: 30, right: 30, cellSize: ['auto', 18], range: new Date().getFullYear(),
+          itemStyle: { borderWidth: 0.5, borderColor: '#fff' },
+          yearLabel: { show: false }, dayLabel: { nameMap: 'ZH' }, monthLabel: { nameMap: 'ZH' }
+        },
+        series: [{ type: 'heatmap', coordinateSystem: 'calendar', data: heatmapData }]
+      });
+
+      // D. 堆叠柱图：知识点覆盖率
+      const cvgData = coverageRes.data;
+      coverageChart.setOption({
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'shadow' },
+          formatter: (params) => {
+            let practiced = params[0].value;
+            let unpracticed = params[1].value;
+            let total = practiced + unpracticed;
+            let rate = total === 0 ? 0 : ((practiced / total) * 100).toFixed(1);
+            return `${params[0].name}<br/>已练习: ${practiced}<br/>未练习: ${unpracticed}<br/>覆盖率: ${rate}%`;
+          }
+        },
+        legend: { data: ['已练知识点', '未练知识点'] },
+        xAxis: { type: 'value' },
+        yAxis: { type: 'category', data: cvgData.map(d => d.subName) },
+        series: [
+          { name: '已练知识点', type: 'bar', stack: 'total', data: cvgData.map(d => d.practicedKp), itemStyle: { color: '#409EFF' } },
+          { name: '未练知识点', type: 'bar', stack: 'total', data: cvgData.map(d => (d.totalKp - d.practicedKp)), itemStyle: { color: '#E4E7ED' } }
+        ]
+      });
+
     } catch (error) {
       console.error("加载统计数据失败", error);
+      ElMessage.error("获取统计数据失败");
     } finally {
       loadingStats.value = false;
     }
   };
 
   const updateRadarChart = () => {
-      if (!radarChart || !selectedSubjectForChart.value) return;
+    if (!radarChart || !selectedSubjectForChart.value) return;
+    const currentSubjectData = rawKnowledgeData.value.filter(item => item.subId == selectedSubjectForChart.value);
 
-      const currentSubjectData = rawKnowledgeData.value.filter(item => {
-          const itemSubId = item.subId || item.subid || item.SUBID;
-          return itemSubId == selectedSubjectForChart.value;
+    let indicator = [], values = [];
+    if (currentSubjectData.length > 0) {
+      currentSubjectData.forEach(item => {
+        indicator.push({ name: item.kpName || '未知', max: 100 });
+        values.push(item.correctRate || 0);
       });
+    } else {
+      indicator = [{ name: '暂无数据', max: 100 }];
+      values = [0];
+    }
 
-      let indicator = [];
-      let values = [];
-
-      if(currentSubjectData.length > 0) {
-        currentSubjectData.forEach(item => {
-            const kpName = item.kpName || item.kpname || item.KPNAME || '未知知识点';
-            const rate = item.correctRate || item.correctrate || item.CORRECTRATE || 0;
-            indicator.push({ name: kpName, max: 100 });
-            values.push(rate);
-        });
-      } else {
-         indicator = [{name: '该科目暂无录入知识点', max: 100}];
-         values = [0];
-      }
-
-      radarChart.setOption({
-        tooltip: {
-            trigger: 'item',
-            formatter: (params) => {
-               let str = `${params.name}<br/>`;
-               params.value.forEach((val, index) => {
-                   str += `${indicator[index].name} : ${val}%<br/>`;
-               });
-               return str;
-            }
-        },
-        radar: {
-            indicator: indicator,
-            radius: '60%',
-            axisName: {
-                color: '#333',
-                formatter: (value) => { return value.length > 6 ? value.slice(0, 6) + '...' : value; }
-            }
-        },
-        series: [{
-          name: '掌握度',
-          type: 'radar',
-          areaStyle: { color: 'rgba(64, 158, 255, 0.3)' },
-          itemStyle: { color: '#409EFF' },
-          data: [{ value: values, name: '正确率(%)' }]
-        }]
-      });
+    radarChart.setOption({
+      tooltip: { trigger: 'item' },
+      radar: {
+        indicator: indicator,
+        radius: '60%',
+        axisName: { color: '#333', formatter: (v) => v.length > 6 ? v.slice(0, 6) + '...' : v }
+      },
+      series: [{
+        type: 'radar',
+        areaStyle: { color: 'rgba(64, 158, 255, 0.3)' },
+        data: [{ value: values, name: '掌握度(%)' }]
+      }]
+    });
   };
 
   const handleResize = () => {
-    radarChart?.resize();
-    lineChart?.resize();
+    [radarChart, lineChart, heatmapChart, coverageChart].forEach(chart => chart?.resize());
   };
 
-  // === 视频模态框与进度追踪逻辑 ===
+  // === 视频播放逻辑 (续播功能) ===
   const showModal = ref(false);
   const currentVideo = ref(null);
   const currentIframeUrl = ref('');
@@ -398,38 +453,23 @@
   const videoPlayerRef = ref(null);
 
   const isMp4 = (url) => url && (url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.webm'));
-
   const calculateProgress = (video) => {
-    const lastPos = video.lastPosition || video.lastposition || video.LASTPOSITION || 0;
-    const duration = video.vidDuration || video.vidduration || video.VIDDURATION || 1;
-    let percent = (lastPos / duration) * 100;
-    if (percent > 100) percent = 100;
-    return percent + '%';
+    const lastPos = video.lastPosition || 0;
+    const duration = video.vidDuration || 1;
+    return Math.min((lastPos / duration) * 100, 100) + '%';
   };
 
-  const getIframeUrlWithTime = (url, seconds) => {
-    if (!url) return '';
-    if (url.includes('bilibili.com')) {
-      const sep = url.includes('?') ? '&' : '?';
-      return `${url}${sep}t=${seconds}`;
-    }
-    if (url.includes('youtube.com')) {
-      const sep = url.includes('?') ? '&' : '?';
-      return `${url}${sep}start=${seconds}`;
-    }
-    return url;
-  };
-
-const openVideo = (video) => {
+  const openVideo = (video) => {
     currentVideo.value = video;
     showModal.value = true;
     document.body.style.overflow = 'hidden';
-
-    const lastPos = video.lastPosition || video.lastposition || video.LASTPOSITION || 0;
+    const lastPos = video.lastPosition || 0;
     currentPosition.value = lastPos;
 
-    currentIframeUrl.value = getIframeUrlWithTime(video.vidUrl, lastPos);
-
+    if (!isMp4(video.vidUrl)) {
+      const sep = video.vidUrl.includes('?') ? '&' : '?';
+      currentIframeUrl.value = `${video.vidUrl}${sep}t=${lastPos}`;
+    }
     startWatchTimer();
   };
 
@@ -449,21 +489,13 @@ const openVideo = (video) => {
 
   const startWatchTimer = () => {
     if (watchTimer) clearInterval(watchTimer);
-    watchTimer = setInterval(() => {
-      currentPosition.value += 1;
-    }, 1000);
+    watchTimer = setInterval(() => { currentPosition.value += 1; }, 1000);
   };
 
-  const stopWatchTimer = () => {
-    if (watchTimer) {
-      clearInterval(watchTimer);
-      watchTimer = null;
-    }
-  };
+  const stopWatchTimer = () => { if (watchTimer) clearInterval(watchTimer); };
 
   const saveProgressToBackend = async () => {
-    if (!userInfo.value.userId || !currentVideo.value || currentPosition.value === 0) return;
-
+    if (!userInfo.value.userId || !currentVideo.value) return;
     try {
       await axios.post('http://localhost:8080/videoProgress/save', {
         progUserId: userInfo.value.userId,
@@ -472,150 +504,102 @@ const openVideo = (video) => {
         progIsFinished: 0
       });
       loadRecentVideos();
-    } catch (error) {
-      console.error("保存视频进度失败", error);
-    }
+    } catch (e) { console.error("保存进度失败", e); }
   };
 
-  // === 数据加载与交互逻辑 ===
-  const loadSubjects = async () => {
-    try {
-      const res = await axios.get('http://localhost:8080/subjects');
-      subjects.value = res.data;
-    } catch (e) {
-      console.error('加载科目失败', e);
-    }
-  };
-
-  const getSubjectName = (subId) => {
-    const sub = subjects.value.find(s => s.subId === subId);
-    return sub ? sub.subName : '未知';
-  };
-
-  const loadFavoriteQuestions = async () => {
-    loadingQuestions.value = true;
-    try {
-      const res = await axios.get(`http://localhost:8080/favoriteQuestions/details?userId=${userInfo.value.userId}`);
-      favoriteQuestions.value = res.data;
-    } catch (e) {
-      console.error('加载收藏题目失败', e);
-    } finally {
-      loadingQuestions.value = false;
-    }
-  };
-
-// === 题目详情弹窗逻辑 ===
+  // === 题目详情逻辑 ===
   const showQuestionModal = ref(false);
   const currentQuestion = ref(null);
-  const currentQuestionType = ref('fav'); // 区分是 'fav'(收藏) 还是 'error'(错题)
+  const currentQuestionType = ref('fav');
 
-  // 格式化选项 (复用主界面逻辑)
-  const formatOptions = (optionsStr) => {
-    if (!optionsStr) return [];
-    const cleanStr = optionsStr.replace(/\s+/g, ' ').trim() + " ";
+  const formatOptions = (str) => {
+    if (!str) return [];
     const regex = /[A-D][\.．、\s][\s\S]*?(?=[A-D][\.．、\s]|$)/g;
-    const matches = cleanStr.match(regex);
-    return matches ? matches.map(o => o.trim()).filter(o => o.length > 2) : [];
+    return (str.match(regex) || []).map(o => o.trim());
   };
 
-  // 提取选项字母 (复用主界面逻辑)
-  const getOptionLetter = (optText) => {
-    return optText.trim().charAt(0).toUpperCase();
-  };
+  const getOptionLetter = (opt) => opt.trim().charAt(0).toUpperCase();
 
-  // 打开题目详情 (替换了原先的 router.push 页面跳转)
   const openDetail = (row, type = 'fav') => {
     currentQuestion.value = row;
     currentQuestionType.value = type;
     showQuestionModal.value = true;
   };
 
-  const unfavQues = async (quesId) => {
+  // === 数据加载接口 ===
+  const loadSubjects = async () => {
+    const res = await axios.get('http://localhost:8080/subjects');
+    subjects.value = res.data;
+  };
+
+  const getSubjectName = (subId) => subjects.value.find(s => s.subId === subId)?.subName || '未知';
+
+  const loadFavoriteQuestions = async () => {
+    loadingQuestions.value = true;
     try {
-      const res = await axios.post('http://localhost:8080/favoriteQuestions/remove', {
-        favUserId: userInfo.value.userId,
-        favQuesId: quesId
-      });
-      if (res.data === 'success') {
-        ElMessage.success('已取消收藏题目');
-        favoriteQuestions.value = favoriteQuestions.value.filter(q => q.quesId !== quesId);
-      }
-    } catch (e) {
-      console.error('取消收藏题目失败', e);
+      const res = await axios.get(`http://localhost:8080/favoriteQuestions/details?userId=${userInfo.value.userId}`);
+      favoriteQuestions.value = res.data;
+    } finally { loadingQuestions.value = false; }
+  };
+
+  const unfavQues = async (quesId) => {
+    const res = await axios.post('http://localhost:8080/favoriteQuestions/remove', {
+      favUserId: userInfo.value.userId,
+      favQuesId: quesId
+    });
+    if (res.data === 'success') {
+      ElMessage.success('取消收藏成功');
+      favoriteQuestions.value = favoriteQuestions.value.filter(q => q.quesId !== quesId);
     }
   };
 
   const loadErrorRecords = async () => {
-      loadingErrors.value = true;
-      try {
-          const res = await axios.get(`http://localhost:8080/records/errors?userId=${userInfo.value.userId}`);
-          errorRecords.value = res.data;
-      } catch (e) {
-          console.error("加载错题记录失败", e);
-      } finally {
-          loadingErrors.value = false;
-      }
+    loadingErrors.value = true;
+    try {
+      const res = await axios.get(`http://localhost:8080/records/errors?userId=${userInfo.value.userId}`);
+      errorRecords.value = res.data;
+    } finally { loadingErrors.value = false; }
   };
 
   const loadRecentVideos = async () => {
-      loadingRecentVideo.value = true;
-      try {
-          const res = await axios.get(`http://localhost:8080/videoProgress/recent?userId=${userInfo.value.userId}`);
-          recentVideos.value = res.data;
-      } catch(e) {
-          console.error("加载近期视频失败", e);
-      } finally {
-          loadingRecentVideo.value = false;
-      }
+    loadingRecentVideo.value = true;
+    try {
+      const res = await axios.get(`http://localhost:8080/videoProgress/recent?userId=${userInfo.value.userId}`);
+      recentVideos.value = res.data;
+    } finally { loadingRecentVideo.value = false; }
   };
 
   const loadFavoriteVideos = async () => {
     loadingVideos.value = true;
     try {
-      const res = await axios.get(`http://localhost:8080/favoriteVideos/details`, {
-        params: { userId: userInfo.value.userId }
-      });
+      const res = await axios.get(`http://localhost:8080/favoriteVideos/details?userId=${userInfo.value.userId}`);
       favoriteVideos.value = res.data;
-    } catch (error) {
-      console.error("加载视频失败:", error);
-    } finally {
-      loadingVideos.value = false;
-    }
+    } finally { loadingVideos.value = false; }
   };
 
   const unfavVideo = async (vidId) => {
-    try {
-      await ElMessageBox.confirm('确定要取消收藏这个视频吗？', '提示', { type: 'warning' });
-      const res = await axios.post(`http://localhost:8080/favoriteVideos/remove`, {
-        favUserId: userInfo.value.userId,
-        favVidsId: vidId
-      });
-      if (res.data === 'success') {
-        ElMessage.success('已取消收藏');
-        favoriteVideos.value = favoriteVideos.value.filter(v => v.vidId !== vidId);
-      }
-    } catch (error) {
-      if (error !== 'cancel') ElMessage.error('操作失败');
+    await ElMessageBox.confirm('确定要取消收藏吗？', '提示', { type: 'warning' });
+    const res = await axios.post(`http://localhost:8080/favoriteVideos/remove`, {
+      favUserId: userInfo.value.userId,
+      favVidsId: vidId
+    });
+    if (res.data === 'success') {
+      ElMessage.success('已取消收藏');
+      favoriteVideos.value = favoriteVideos.value.filter(v => v.vidId !== vidId);
     }
   };
 
-  // === 工具函数 ===
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString();
+  // === 格式化工具 ===
+  const formatDate = (s) => s ? new Date(s).toLocaleDateString() : '';
+  const formatDateTime = (s) => {
+    if (!s) return '';
+    const d = new Date(s);
+    return `${d.toLocaleDateString()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
-
-  const formatDateTime = (dateStr) => {
-     if (!dateStr) return '';
-     const d = new Date(dateStr);
-     return `${d.toLocaleDateString()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
-
   const formatSeconds = (sec) => {
-      if(!sec) return "00:00";
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 </script>
 
