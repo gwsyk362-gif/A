@@ -16,21 +16,21 @@ public class PracticeRecordController {
     @Autowired
     private PracticeRecordService practiceRecordService;
 
+
     @PostMapping("/submitBatch")
     public ResponseEntity<?> submitBatchRecords(@RequestBody List<PracticeRecord> records) {
-        // 为每条记录设置当前时间
         LocalDateTime now = LocalDateTime.now();
         records.forEach(record -> record.setRecTime(now));
 
-        boolean success = practiceRecordService.saveBatch(records);
+        // ✨ 重点：调用新的业务方法，在保存的同时更新用户分数
+        boolean success = practiceRecordService.saveRecordsAndUpdateScore(records);
 
         if (success) {
-            return ResponseEntity.ok("交卷成功，记录已保存");
+            return ResponseEntity.ok("记录已保存，推荐算法权重已更新");
         } else {
             return ResponseEntity.status(500).body("保存记录失败");
         }
     }
-
     @GetMapping("/stats/knowledge")
     public ResponseEntity<?> getKnowledgeMastery(@RequestParam Integer userId) {
         return ResponseEntity.ok(practiceRecordService.getKnowledgeMastery(userId));

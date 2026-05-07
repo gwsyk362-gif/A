@@ -27,26 +27,29 @@ public class PaperController {
     @Autowired
     private QuestionMapper questionMapper;
 
-    @GetMapping("/generate")
-    public List<Question> getPaper(@RequestParam Integer subId, @RequestParam Integer count) {
-        System.out.println("Generating paper for subId: " + subId + ", count: " + count);
-        List<Question> result = paperGenerating.generateRandomPaper(subId, count);
-        System.out.println("Generated " + result.size() + " questions");
+    @GetMapping("/generatePersonalized")
+    public List<Question> getPersonalizedPaper(
+            @RequestParam Integer userId,
+            @RequestParam Integer subId,
+            @RequestParam Integer count) {
+
+        System.out.println("Generating personalized paper for userId: " + userId + ", subId: " + subId + ", count: " + count);
+
+        // 调用我们在 paperGenerating (Service层) 新加的方法
+        List<Question> result = paperGenerating.generatePersonalizedPaper(userId, subId, count);
+
+        System.out.println("Generated " + result.size() + " personalized questions for user " + userId);
         return result;
     }
 
-    @GetMapping("/recommend")
-    public List<Question> recommendQuestions(@RequestParam Integer userId,
-                                             @RequestParam int count,
-                                             @RequestParam Integer subjectId,
-                                             @RequestParam(required = false) String kp) {
-        List<Integer> quesIds = userBasedRecommendService.recommendQuestions(userId, count, subjectId, kp);
+    @GetMapping("/getQuestions")
+    public List<Question> getRecommendQuestions(
+            @RequestParam Integer userId,
+            @RequestParam Integer subjectId,
+            @RequestParam(required = false) String kp,
+            @RequestParam(defaultValue = "5") int count) {
 
-        // 将 ID 列表转换为完整的题目列表
-        if (quesIds.isEmpty()) return new ArrayList<>();
-
-        // 用selectBatchIds查询完整信息
-        return questionMapper.selectBatchIds(quesIds);
+        return userBasedRecommendService.recommendQuestions(userId, count, subjectId, kp);
     }
 
     //获取知识点列表

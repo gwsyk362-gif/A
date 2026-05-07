@@ -31,8 +31,9 @@ public class UserBasedRecommendService {
     /**
      * 基于多目标特征融合的智能推荐逻辑 (含冷启动防御)
      */
-    public List<Integer> recommendQuestions(Integer targetUserId, int recommendCount, Integer subjectId, String kp) {
+    public List<Question> recommendQuestions(Integer targetUserId, int recommendCount, Integer subjectId, String kp) {
 
+        System.out.println(">>> 推荐方法被触发了！");
         // --- 1. 召回阶段 (Recall)：获取候选题目池 ---
         QueryWrapper<Question> qw = new QueryWrapper<>();
         qw.eq("ques_sub_id", subjectId);
@@ -67,7 +68,7 @@ public class UserBasedRecommendService {
             }
         }
 
-        // ✨ 2.4 致命补漏：冷启动防御机制
+        // ✨ 2.4 冷启动防御机制
         if (targetUserHistory.isEmpty()) {
             System.out.println("用户 " + targetUserId + " 处于冷启动阶段，启动兜底推荐策略。");
             Set<Integer> validQuesIds = null;
@@ -94,9 +95,9 @@ public class UserBasedRecommendService {
             // 计算期望胜率
             double expectedWinRate = 1.0 / (1.0 + Math.pow(10, (quesScore - targetUserScore) / 400.0));
             // 假设 0.55 是最佳挑战胜率 (既不太难也不太简单)，计算偏差
-            double zpdScore = 1.0 - Math.abs(expectedWinRate - 0.55) / 0.55;
+            double zpdScore = 1.0 - Math.abs(expectedWinRate - 0.45);;
             if (zpdScore < 0) zpdScore = 0;
-            finalScore += 0.40 * zpdScore;
+            finalScore += 0.40 * zpdScore + Math.random() * 0.05;
 
 
             // ====== 目标B：协同过滤个性化偏好 (权重 30%) ======
@@ -136,37 +137,57 @@ public class UserBasedRecommendService {
             }
             finalScore += 0.30 * memoryScore;
 
+            finalScore += (quesId % 100) * 0.0001;
             // 将最终得分压入集合
-            scoredQuestions.add(new QuestionScoreVO(quesId, finalScore));
+            scoredQuestions.add(new QuestionScoreVO(q.getQuesId(), finalScore));
+            // 仅打印前 5 个候选者的得分详情
+            if (scoredQuestions.size() < 5) {
+                System.out.println(String.format("ID:%d | 总分:%.3f | ZPD:%.3f | CF:%.3f | Mem:%.3f | 用户分:%.1f | 题分:%.1f",
+                        quesId, finalScore, zpdScore, cfScore, memoryScore, targetUserScore, quesScore));
+            }
         }
 
         // --- 4. 倒序排列并返回 ID ---
-        return scoredQuestions.stream()
+        List<Integer> topIds = scoredQuestions.stream()
                 .sorted(Comparator.comparingDouble(QuestionScoreVO::getFinalScore).reversed())
                 .limit(recommendCount)
                 .map(QuestionScoreVO::getQuesId)
                 .collect(Collectors.toList());
+
+        if (topIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // --- 5.获取实体对象并排序 ---
+        List<Question> resultQuestions = questionMapper.selectBatchIds(topIds);
+
+        resultQuestions.sort(Comparator.comparingInt(q -> topIds.indexOf(q.getQuesId())));
+        return resultQuestions;
     }
 
     /**
      * 冷启动兜底推荐：按热度或随机
      */
-    private List<Integer> recommendByPopularity(Integer subjectId, int count, Set<Integer> validQuesIds) {
-        // 如果有知识点限制，原有针对全科目的“热度 SQL”就不适用了，直接从满足条件的 ID 里随机抽
+    private List<Question> recommendByPopularity(Integer subjectId, int count, Set<Integer> validQuesIds) {
+        List<Integer> ids;
         if (validQuesIds != null) {
-            List<Integer> list = new ArrayList<>(validQuesIds);
-            Collections.shuffle(list);
-            return list.stream().limit(count).collect(Collectors.toList());
+            ids = new ArrayList<>(validQuesIds);
+            Collections.shuffle(ids);
+            ids = ids.stream().limit(count).collect(Collectors.toList());
+        } else {
+            ids = questionMapper.selectHotQuestionIds(subjectId, count);
+            if (ids == null || ids.isEmpty()) {
+                ids = questionMapper.selectRandomIdsBySubject(subjectId, count);
+            }
         }
 
-        // 按热度查找（全科目）
-        List<Integer> ids = questionMapper.selectHotQuestionIds(subjectId, count);
+        if (ids.isEmpty()) return new ArrayList<>();
 
-        // 没人做过 随机抽题
-        if (ids == null || ids.isEmpty()) {
-            return questionMapper.selectRandomIdsBySubject(subjectId, count);
-        }
-        return ids;
+        // 将 ID 转换为实体
+        List<Question> questions = questionMapper.selectBatchIds(ids);
+        List<Integer> finalIds = ids;
+        questions.sort(Comparator.comparingInt(q -> finalIds.indexOf(q.getQuesId())));
+        return questions;
     }
 
     /**

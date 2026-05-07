@@ -2,78 +2,50 @@
   <div v-if="questions && questions.length > 0" class="exam-container">
 
     <template v-if="!isPracticeMode">
-      <div v-if="showResult" class="score-banner">
-        正确率：{{ score }} / {{ questions.length }}
-      </div>
-
+      <div v-if="showResult" class="score-banner">正确率：{{ score }} / {{ questions.length }}</div>
       <div class="paper-list">
         <div v-for="(question, index) in questions" :key="question.quesId" class="paper-question-item">
           <div class="question-header">
-            <div class="question-title">
-              {{ index + 1 }}. {{ question.quesContent }}
-            </div>
-            <div class="header-right">
-              <span v-if="question.quesKp" class="knowledge-tag">{{ question.quesKp }}</span>
-              <button
-                class="fav-btn"
-                :class="{ 'is-fav': isFavorited(question.quesId) }"
-                @click="toggleFavorite(question)"
-                title="收藏题目"
-              >
-                {{ isFavorited(question.quesId) ? '★' : '☆' }}
-              </button>
-            </div>
+            <div class="question-title">{{ index + 1 }}. {{ question.quesContent }}</div>
           </div>
-
           <div class="options-group">
             <div
-              v-for="(opt, optIndex) in formatOptions(question.quesOptions)"
-              :key="optIndex"
-              class="option-item"
-              :class="{ 'selected': question.userAnswer === getOptionLetter(opt) }"
-              @click="!showResult && selectAnswer(question, opt)"
-            >
+              v-for="(opt, optIndex) in formatOptions(question.quesOptions)" :key="optIndex"
+              class="option-item" :class="{ 'selected': question.userAnswer === getOptionLetter(opt) }"
+              @click="!showResult && selectAnswer(question, opt)">
               <label class="option-label">
-                <input
-                  type="radio"
-                  :name="'q-' + question.quesId"
-                  :value="getOptionLetter(opt)"
-                  v-model="question.userAnswer"
-                  :disabled="showResult"
-                />
+                <input type="radio" :name="'q-' + question.quesId" :value="getOptionLetter(opt)" v-model="question.userAnswer" :disabled="showResult" />
                 <span>{{ opt }}</span>
               </label>
             </div>
           </div>
+          <div v-if="showResult" class="result-container">
+            <div :class="['result-box', question.userAnswer === question.quesAnswer ? 'correct' : 'wrong']">
+              <span v-if="question.userAnswer === question.quesAnswer">✓ 正确</span>
+              <span v-else>✗ 错误。正确答案是：{{ question.quesAnswer }}</span>
+            </div>
 
-          <div v-if="showResult" :class="['result-box', question.userAnswer === question.quesAnswer ? 'correct' : 'wrong']">
-            <span v-if="question.userAnswer === question.quesAnswer">✓ 正确</span>
-            <span v-else>✗ 错误。正确答案是：{{ question.quesAnswer }}</span>
+            <div class="analysis-box">
+              <strong class="analysis-title">💡 题目解析：</strong>
+              <p class="analysis-content">{{ question.quesAnalysis || '该题目暂无解析' }}</p>
+            </div>
           </div>
         </div>
       </div>
-
       <div class="action-bar">
         <button v-if="!showResult" @click="submitPaper" class="submit-btn">提交所有答案</button>
         <button v-else @click="resetPaper" class="clear-btn">清除当前试卷</button>
       </div>
     </template>
 
-
     <template v-else>
       <div class="cards-grid">
         <div v-for="(question, index) in questions" :key="question.quesId" class="question-card">
-
           <div class="question-header">
             <div class="question-title">{{ index + 1 }}. {{ question.quesContent }}</div>
             <div class="header-right">
               <span v-if="question.quesKp" class="knowledge-tag">{{ question.quesKp }}</span>
-              <button
-                class="fav-btn"
-                :class="{ 'is-fav': isFavorited(question.quesId) }"
-                @click="toggleFavorite(question)"
-                title="收藏题目"
-              >
+              <button class="fav-btn" :class="{ 'is-fav': isFavorited(question.quesId) }" @click="toggleFavorite(question)" title="收藏题目">
                 {{ isFavorited(question.quesId) ? '★' : '☆' }}
               </button>
             </div>
@@ -81,20 +53,11 @@
 
           <div class="options-group">
             <div
-              v-for="(opt, optIndex) in formatOptions(question.quesOptions)"
-              :key="optIndex"
-              class="option-item"
-              :class="{ 'selected': question.userAnswer === getOptionLetter(opt) }"
-              @click="selectAnswer(question, opt)"
-            >
+              v-for="(opt, optIndex) in formatOptions(question.quesOptions)" :key="optIndex"
+              class="option-item" :class="{ 'selected': question.userAnswer === getOptionLetter(opt) }"
+              @click="selectAnswer(question, opt)">
               <label class="option-label">
-                <input
-                  type="radio"
-                  :name="'q-' + question.quesId"
-                  :value="getOptionLetter(opt)"
-                  v-model="question.userAnswer"
-                  :disabled="question.submitted"
-                />
+                <input type="radio" :name="'q-' + question.quesId" :value="getOptionLetter(opt)" v-model="question.userAnswer" :disabled="question.submitted" />
                 <span>{{ opt }}</span>
               </label>
             </div>
@@ -110,14 +73,12 @@
             </button>
             <div v-else :class="['result-box', question.userAnswer === question.quesAnswer ? 'correct' : 'wrong']">
               <span v-if="question.userAnswer === question.quesAnswer">✓ 正确</span>
-              <span v-else>✗ 错误。正确答案是：{{ question.quesAnswer }}</span>
+              <span v-else>✗ 错误。正确答案是：{{ question.quesAnswer }}<br><br>解析: {{ question.quesAnalysis || '暂无解析' }}</span>
             </div>
           </div>
-
         </div>
       </div>
     </template>
-
   </div>
 
   <div v-else class="empty-state">
@@ -126,38 +87,31 @@
 </template>
 
 <script setup>
-  import {  computed, ref, onMounted, watch } from 'vue';
+  import { computed, ref, watch } from 'vue';
   import axios from 'axios';
 
   const props = defineProps({
-    questions: {
-      type: Array,
-      default: () => []
-    }
+    questions: { type: Array, default: () => [] }
   });
 
   const emit = defineEmits(['reset']);
 
-  // 判断当前是组卷还是练习
+  // 判断是否为练习模式
   const isPracticeMode = computed(() => {
     return props.questions.length > 0 && props.questions[0].isPractice === true;
   });
 
-  const favoriteIds = ref([]); // 存放当前用户已收藏的题目ID
+  const favoriteIds = ref([]);
 
-  // 获取当前用户ID
   const getCurrentUserId = () => {
     const savedUser = localStorage.getItem('currentUser');
     if (!savedUser) return null;
-    const user = JSON.parse(savedUser);
-    return user.userId;
+    return JSON.parse(savedUser).userId;
   };
 
-// 加载用户的收藏ID列表
   const loadFavorites = async () => {
     const userId = getCurrentUserId();
     if (!userId) return;
-
     try {
       const res = await axios.get(`http://localhost:8080/favoriteQuestions/ids?userId=${userId}`);
       favoriteIds.value = res.data;
@@ -166,11 +120,7 @@
     }
   };
 
-
-  // 判断某题是否已收藏
-  const isFavorited = (quesId) => {
-    return favoriteIds.value.includes(quesId);
-  };
+  const isFavorited = (quesId) => favoriteIds.value.includes(quesId);
 
   const toggleFavorite = async (question) => {
     const userId = getCurrentUserId();
@@ -178,28 +128,16 @@
       alert("请先登录再进行收藏");
       return;
     }
-
     const quesId = question.quesId;
     const currentlyFavorited = isFavorited(quesId);
-    const url = currentlyFavorited
-      ? 'http://localhost:8080/favoriteQuestions/remove'
-      : 'http://localhost:8080/favoriteQuestions/add';
-
-    const favData = {
-      favUserId: userId,
-      favQuesId: quesId
-    };
+    const url = currentlyFavorited ? 'http://localhost:8080/favoriteQuestions/remove' : 'http://localhost:8080/favoriteQuestions/add';
+    const favData = { favUserId: userId, favQuesId: quesId };
 
     try {
-      // 发送请求给后端
       await axios.post(url, favData);
-
-      // 前端状态同步
       if (currentlyFavorited) {
-        // 取消收藏
         favoriteIds.value = favoriteIds.value.filter(id => id !== quesId);
       } else {
-        // 添加收藏
         favoriteIds.value.push(quesId);
       }
     } catch (error) {
@@ -207,25 +145,56 @@
     }
   };
 
-  // 当题目列表变化时，重新加载收藏状态
   watch(() => props.questions, (newQuestions) => {
     if (newQuestions && newQuestions.length > 0) {
       loadFavorites();
     }
   }, { immediate: true });
 
-
-  // ====== 组卷模式 ======
   const showResult = ref(false);
   const score = ref(0);
 
-  const submitPaper = () => {
+const submitPaper = async () => {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      alert("登录已过期或未登录，请先登录");
+      return;
+    }
+
     let currentScore = 0;
+    const recordsToSubmit = [];
+
+    // 遍历试卷中的所有题目
     props.questions.forEach(q => {
-      if (q.userAnswer === q.quesAnswer) currentScore++;
+      const isCorrect = (q.userAnswer === q.quesAnswer) ? 1 : 0;
+      if (isCorrect) currentScore++;
+
+      // 只有用户作答了的题目才记录（或者你想记录未作答的为错误，去掉这个if判断即可）
+      if (q.userAnswer) {
+        recordsToSubmit.push({
+          recUserId: userId,
+          recQuesId: q.quesId,
+          recUserAnswer: q.userAnswer,
+          recIsCorrect: isCorrect
+        });
+      }
     });
+
+    // 1. 先在前端展示分数和解析
     score.value = currentScore;
     showResult.value = true;
+
+    // 2. 将整张试卷的做题情况一次性写入数据库
+    if (recordsToSubmit.length > 0) {
+      try {
+        // 调用后端现有的批量提交接口
+        await axios.post('http://localhost:8080/records/submitBatch', recordsToSubmit);
+        console.log("整卷做题记录已成功写入数据库，用户能力画像已更新！");
+      } catch (error) {
+        console.error("保存整卷记录失败:", error);
+        alert("成绩已计算，但作答记录保存失败，请检查网络连接");
+      }
+    }
   };
 
   const formatOptions = (optionsStr) => {
@@ -236,34 +205,24 @@
     return matches ? matches.map(o => o.trim()).filter(o => o.length > 2) : [];
   };
 
-  const getOptionLetter = (optText) => {
-    return optText.trim().charAt(0).toUpperCase();
-  };
+  const getOptionLetter = (optText) => optText.trim().charAt(0).toUpperCase();
 
   const selectAnswer = (question, opt) => {
-    // 如果是练习模式且已提交，不允许再选
     if (isPracticeMode.value && question.submitted) return;
-    // 如果是组卷模式且已交卷，不允许再选
     if (!isPracticeMode.value && showResult.value) return;
-
     question.userAnswer = getOptionLetter(opt);
   };
 
-  // 练习模式：单题提交
+  // ====== 练习模式：单题提交，触发后端算法的动态分数更新 ======
   const submitSingle = async (question) => {
     if (!question.userAnswer) return;
-
-    // 1. 获取当前用户ID
     const userId = getCurrentUserId();
     if (!userId) {
       alert("登录已过期或未登录，请先登录");
       return;
     }
 
-    // 2. 判题逻辑：比对用户答案与正确答案
     const isCorrect = (question.userAnswer === question.quesAnswer) ? 1 : 0;
-
-    // 3. 构造符合 PracticeRecord 实体类的数据结构
     const recordData = {
       recUserId: userId,
       recQuesId: question.quesId,
@@ -272,19 +231,15 @@
     };
 
     try {
-      // 4. 发送 POST 请求保存记录
-      await axios.post('/api/records/submitBatch', [recordData]);
-
-      // 5. 保存成功后，才在前端标记为已提交，展示对错解析
+      // 提交后，你的后端 PracticeRecordServiceimpl 会自动计算并更新 Elo 能力分！
+      await axios.post('http://localhost:8080/records/submitBatch', [recordData]);
       question.submitted = true;
-
     } catch (error) {
       console.error("保存做题记录失败:", error);
       alert("提交失败，请检查网络连接");
     }
   };
 
-  // 清空面板
   const resetPaper = () => {
     showResult.value = false;
     score.value = 0;
@@ -471,6 +426,46 @@
     background: #fff5f5;
     color: #c0392b;
     border: 1px solid #feb2b2;
+  }
+  /* ====== 新增与修改的解析面板样式 ====== */
+  .result-container {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* 结果和解析之间的间距 */
+  }
+
+  .result-box {
+    width: 100%;
+    /* margin-top: 15px;  <-- 如果你原有的样式里有这行，请删掉，由外层 container 的 margin-top 接管 */
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  /* 解析框样式 */
+  .analysis-box {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #4e555e;
+  }
+
+  .analysis-title {
+    color: #3478e5;
+    display: block;
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+
+  .analysis-content {
+    margin: 0;
+    white-space: pre-wrap; /* 保留后端解析文本可能带有的换行符 */
   }
 
   .action-bar {

@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, defineEmits, defineProps, watch } from 'vue';
+  import { ref, onMounted, watch } from 'vue';
 
   const props = defineProps({
     currentUser: Object,
@@ -74,7 +74,7 @@
 
   const subjects = ref([]);
   const selectedSubjectId = ref('');
-  const questionCount = ref(5);
+  const questionCount = ref(10);
   const errorMessage = ref('');
 
   // 知识点相关的响应式变量
@@ -110,42 +110,55 @@
   });
 
   // ====== 组卷模式 ======
+// ====== 组卷模式 ======
   const handleGenerate = async () => {
     errorMessage.value = '';
     try {
-      const res = await fetch(`http://localhost:8080/generate?subId=${selectedSubjectId.value}&count=${questionCount.value}`);
+      // 1. 获取当前登录用户
+      const savedUser = localStorage.getItem('currentUser');
+      if (!savedUser) {
+        errorMessage.value = "请先登录";
+        return;
+      }
+      const userId = JSON.parse(savedUser).userId;
+
+      // 2. 调用后端新的个性化组卷接口
+      const res = await fetch(`http://localhost:8080/generatePersonalized?userId=${userId}&subId=${selectedSubjectId.value}&count=${questionCount.value}`);
       if (!res.ok) throw new Error('生成试卷失败');
+
       const data = await res.json();
+      // 组卷模式 isPractice 依然是 false
       emit('paper-generated', data.map(q => ({ ...q, userAnswer: '', submitted: false, isPractice: false })));
     } catch (err) {
       errorMessage.value = err.message;
     }
   };
 
-  // ====== 练习模式 ======
-  // 根据科目和知识点获取所有相关题目
+  // ====== 练习模式 (触发推荐算法) ======
   const handlePracticeFetch = async () => {
     errorMessage.value = '';
     try {
-      // 检查登录状态
       const savedUser = localStorage.getItem('currentUser');
       if (!savedUser) {
         errorMessage.value = "请先登录";
         return;
       }
+      const user = JSON.parse(savedUser);
+      const userId = user.userId;
 
-      let url = `http://localhost:8080/practice/all?subjectId=${selectedSubjectId.value}`;
+      // 重点：调用后端新写的 RecommendController
+      let url = `http://localhost:8080/recommend/getQuestions?userId=${userId}&subjectId=${selectedSubjectId.value}&count=${questionCount.value}`;
 
       if (selectedKnowledgePoint.value) {
-        // kp 参数名和你的后端是一致的，不需要改
         url += `&kp=${encodeURIComponent(selectedKnowledgePoint.value)}`;
       }
 
       const res = await fetch(url);
-      if (!res.ok) throw new Error('获取题目失败');
+      if (!res.ok) throw new Error('推荐系统获取题目失败');
 
       const data = await res.json();
 
+      // 将推荐的题目打上 isPractice: true 的标记，交给 ExamView 渲染
       emit('recommend-fetched', data.map(q => ({
         ...q,
         userAnswer: '',
@@ -154,6 +167,7 @@
       })));
     } catch (err) {
       errorMessage.value = err.message;
+      console.error("推荐请求出错:", err);
     }
   };
 

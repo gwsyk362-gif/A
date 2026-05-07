@@ -172,6 +172,15 @@
           <div class="ans-row user-ans" v-if="currentQuestionType === 'error'">
             <strong>你的错答：</strong> {{ currentQuestion.recUserAnswer }}
           </div>
+
+          <div class="ans-row analysis-info" v-if="currentQuestion.quesAnalysis">
+            <div class="analysis-label">题目解析：</div>
+            <div class="analysis-text">{{ currentQuestion.quesAnalysis }}</div>
+          </div>
+          <div class="ans-row analysis-info" v-else>
+            <div class="analysis-label">题目解析：</div>
+            <div class="analysis-text" style="color: #999; font-style: italic;">暂无解析内容</div>
+          </div>
         </div>
       </div>
       <template #footer>
@@ -811,4 +820,38 @@ const openVideo = (video) => {
   }
   .correct-ans { color: #67c23a; }
   .user-ans { color: #f56c6c; }
+
+  /* === 题目详情弹窗中的解析样式扩展 === */
+  .q-analysis {
+    margin-top: 15px;
+    padding-top: 18px;
+    border-top: 1px dashed #ebeef5;
+  }
+
+  .ans-row {
+    margin-bottom: 12px; /* 增加行间距 */
+    font-size: 14px;
+  }
+
+  .analysis-info {
+    margin-top: 15px;
+    background: #f8f9fa; /* 给解析加一个浅灰色背景框 */
+    padding: 12px;
+    border-radius: 6px;
+  }
+
+  .analysis-label {
+    font-weight: bold;
+    color: #3478e5;
+    margin-bottom: 6px;
+  }
+
+  .analysis-text {
+    line-height: 1.6;
+    color: #555;
+    white-space: pre-wrap; /* 保证换行符生效 */
+  }
+
+  .correct-ans { color: #67c23a; font-weight: bold; }
+  .user-ans { color: #f56c6c; font-weight: bold; }
 </style>

@@ -18,7 +18,7 @@
             <input
               type="text"
               v-model="searchQuery"
-              placeholder="搜索题目、资源或知识点..."
+              placeholder="搜索相关资源"
               class="round-input"
             />
           </div>

@@ -6,7 +6,7 @@ spring:
     url: jdbc:mysql://localhost:3306/recommender?serverTimezone=GMT%2B8&useSSL=false
     # 数据库用户名
     username: root
-    # 数据库密码（
+    # 数据库密码
     password: 03222090
 
 # MyBatis Plus 配置（让它能找到你之后要写的 SQL）
