@@ -13,9 +13,9 @@
           <h2>{{ userInfo.nickname || userInfo.username }}</h2>
           <p class="user-bio">账号：{{ userInfo.username }}</p>
         </div>
+        <el-button type="danger" size="small" class="logout-btn-in-card" @click="handleLogout">退出登录</el-button>
       </div>
     </el-card>
-
     <el-tabs v-model="activeTab" class="user-tabs" @tab-click="handleTabClick">
 
       <!-- 1. 学习数据 -->
@@ -30,7 +30,7 @@
                 </el-select>
               </div>
             </template>
-            <div ref="radarChartRef" class="chart-box"></div>
+            <div ref="radarChartRef" class="chart-box" style="height: 450px;"></div>
           </el-card>
 
           <el-card class="chart-card" shadow="hover" v-loading="loadingStats">
@@ -39,11 +39,11 @@
                 <span>近7日做题统计</span>
               </div>
             </template>
-            <div ref="lineChartRef" class="chart-box"></div>
+            <div ref="lineChartRef" class="chart-box" style="height: 450px;"></div>
           </el-card>
         </div>
 
-        <el-card class="chart-card" shadow="hover" v-loading="loadingStats" style="width: 100%; margin-top: 20px;">
+       <el-card class="chart-card" shadow="hover" v-loading="loadingStats" style="width: 100%; margin-top: 20px">
           <template #header>
             <div class="card-header">
               <span>全年学习活跃度</span>
@@ -161,6 +161,32 @@
         </div>
       </el-tab-pane>
 
+      <!-- 6. 做题历史 -->
+      <el-tab-pane label="做题历史" name="history">
+        <el-table :data="historyRecords" style="width: 100%" v-loading="loadingHistory">
+          <el-table-column prop="quesContent" label="题目内容" show-overflow-tooltip />
+          <el-table-column prop="recUserAnswer" label="你的答案" width="100" align="center" />
+          <el-table-column prop="quesAnswer" label="正确答案" width="100" align="center" />
+          <el-table-column label="结果" width="100" align="center">
+            <template #default="scope">
+              <el-tag :type="scope.row.recIsCorrect === 1 ? 'success' : 'danger'" size="small">
+                {{ scope.row.recIsCorrect === 1 ? '正确' : '错误' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="做题时间" width="180">
+            <template #default="scope">
+              {{ formatDateTime(scope.row.recTime) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="100">
+            <template #default="scope">
+              <el-button size="small" type="primary" @click="openDetail(scope.row, 'history')">查看</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
     </el-tabs>
 
     <!-- 题目详情卡片弹窗 -->
@@ -269,6 +295,9 @@
   const recentVideos = ref([]);
   const loadingRecentVideo = ref(false);
 
+  const historyRecords = ref([]);
+  const loadingHistory = ref(false);
+
   // === 图表状态与引用 ===
   const radarChartRef = ref(null);
   const lineChartRef = ref(null);
@@ -304,6 +333,7 @@
     else if (name === 'questions' && favoriteQuestions.value.length === 0) loadFavoriteQuestions();
     else if (name === 'errors' && errorRecords.value.length === 0) loadErrorRecords();
     else if (name === 'recentVideo' && recentVideos.value.length === 0) loadRecentVideos();
+    else if (name === 'history' && historyRecords.value.length === 0) loadHistoryRecords();
     else if (name === 'statistics') {
       await nextTick();
       if (!radarChart) loadStatisticsData();
@@ -589,6 +619,20 @@
     }
   };
 
+  //做题历史
+  const loadHistoryRecords = async () => {
+    loadingHistory.value = true;
+    try {
+      const res = await axios.get(`http://localhost:8080/records/history?userId=${userInfo.value.userId}`);
+      historyRecords.value = res.data;
+    } catch (error) {
+      console.error("加载做题历史失败", error);
+      ElMessage.error("获取做题历史失败");
+    } finally {
+      loadingHistory.value = false;
+    }
+  };
+
   // === 格式化工具 ===
   const formatDate = (s) => s ? new Date(s).toLocaleDateString() : '';
   const formatDateTime = (s) => {
@@ -604,245 +648,186 @@
 </script>
 
 <style scoped>
-  .user-center { padding: 20px; max-width: 1000px; margin: 0 auto; }
-  .user-info-card { margin-bottom: 20px; border-radius: 12px; }
+  /* 个人中心主容器 */
+  .user-center {
+    padding: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
 
+  /* 用户信息卡片：确保内部是横向排列 */
+  .user-info-card {
+    margin-bottom: 20px;
+    border-radius: 12px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* 增加一点柔和阴影 */
+  }
+
+  /* 核心修复：确保头像、文字、按钮水平对齐 */
   .user-profile {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-  .info-text h2 { margin: 0 0 8px 0; }
-  .user-bio { color: #666; font-size: 14px; }
-
-  /* 图表布局 */
-  .statistics-container {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-    padding: 10px 0;
-  }
-  .chart-card {
-    flex: 1;
-    min-width: 400px;
-    border-radius: 8px;
-  }
-  .chart-box {
-    width: 100%;
-    height: 350px;
+    display: flex !important; /* 强制开启 flex */
+    flex-direction: row !important; /* 强制横向排列 */
+    align-items: center; /* 垂直居中 */
+    gap: 24px; /* 元素之间的间距 */
+    padding: 10px;
   }
 
-  /* 视频网格布局 */
-  .video-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 20px;
-    padding: 20px 0;
+  /* 头像圆圈变粉色 */
+  .user-profile :deep(.el-avatar) {
+    background-color: #fb7299 !important;
+    color: #ffffff;
+    flex-shrink: 0; /* 防止头像被挤压变扁 */
+    box-shadow: 0 2px 8px rgba(251, 114, 153, 0.2);
   }
-  .video-card {
-    background: #fff;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-    transition: transform 0.3s;
-    cursor: pointer;
-  }
-  .video-card:hover {
-    transform: translateY(-5px);
-  }
-  .video-cover-wrapper {
-    position: relative;
-    height: 140px;
-    background: #f0f0f0;
-  }
-  .video-cover {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .placeholder-cover {
-    height: 100%;
+
+  /* 文字信息区域 */
+  .info-text {
+    flex: 1; /* 占据中间剩余空间 */
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
-    font-size: 40px;
-    color: #999;
-    background: #e4e7ed;
   }
 
-  /* 进度条样式 */
-  .progress-bar {
-      position: absolute;
-      bottom: 0; left: 0; width: 100%; height: 4px;
-      background: rgba(255,255,255,0.3);
-  }
-  .progress-inner {
-      height: 100%;
-      background: #f56c6c;
+  .info-text h2 {
+    margin: 0 0 4px 0;
+    font-size: 22px;
+    color: #18191c;
   }
 
-  .play-overlay {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s;
+  .user-bio {
+    color: #9499a0;
+    font-size: 14px;
+    margin: 0;
   }
-  .video-cover-wrapper:hover .play-overlay { opacity: 1; }
-  .play-overlay i { font-size: 40px; color: #fff; }
-  .video-info { padding: 12px; }
-  .video-title {
-    margin: 0 0 10px 0;
-    font-size: 16px;
-    white-space: nowrap;
+
+  /* 退出登录按钮：靠右显示 */
+  .logout-btn-in-card {
+    margin-left: auto; /* 将按钮推向最右侧 */
+    padding: 10px 20px;
+  }
+
+/* --- 题目详情弹窗美化版样式 --- */
+  :deep(.question-dialog) {
+    border-radius: 16px;
     overflow: hidden;
-    text-overflow: ellipsis;
   }
-  .video-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .video-time { font-size: 12px; color: #999; }
-  .unfav-btn { color: #f56c6c; }
-  .unfav-btn:hover { color: #ff4949; }
-  .empty-state { grid-column: 1 / -1; }
 
-  /* 模态框样式 */
-  .modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 2000; backdrop-filter: blur(4px);
-  }
-  .modal-container {
-    background: white; border-radius: 16px; width: 90%; max-width: 880px;
-    max-height: 85vh; display: flex; flex-direction: column;
-    box-shadow: 0 20px 35px rgba(0, 0, 0, 0.2);
-  }
-  .modal-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 16px 20px; border-bottom: 1px solid #e9ecef;
-  }
-  .modal-header h3 { margin: 0; font-size: 18px; color: #18191c; }
-  .close-btn {
-    background: none; border: none; font-size: 24px; cursor: pointer; color: #9499a0;
-  }
-  .close-btn:hover { color: #fb7299; }
-  .modal-body { flex: 1; overflow-y: auto; padding: 20px; }
-  .video-wrapper {
-    position: relative; padding-bottom: 56.25%; height: 0; background: #000;
-    border-radius: 12px; overflow: hidden;
-  }
-  .video-wrapper iframe, .video-wrapper video {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;
-  }
-  .video-description { margin-top: 16px; font-size: 14px; color: #4e555e; line-height: 1.5; }
-  .no-video { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; }
-
-  /* === 题目详情弹窗卡片样式 === */
   .question-card-detail {
     padding: 10px 5px;
   }
 
+  /* 题干：加深颜色，提高行高 */
   .q-title {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     line-height: 1.6;
-    color: #18191c;
+    color: #1d1d1f;
   }
 
+  /* 知识点标签：精致的小圆角边框 */
   .q-tag {
     display: inline-block;
-    background: #eef4ff;
-    color: #3478e5;
-    padding: 2px 8px;
-    border-radius: 4px;
+    background: #f0f5ff;
+    color: #2f54eb;
+    border: 1px solid #adc6ff;
+    padding: 2px 10px;
+    border-radius: 6px;
     font-size: 12px;
-    margin-right: 8px;
-    font-weight: normal;
-    vertical-align: text-bottom;
+    margin-right: 10px;
+    font-weight: 500;
+    vertical-align: middle;
   }
 
+  /* 选项列表容器 */
   .q-options {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-bottom: 24px;
+    gap: 14px;
+    margin-bottom: 28px;
   }
 
+  /* 单个选项：增加阴影和过渡动画 */
   .q-option-item {
-    padding: 12px 16px;
-    border: 1px solid #ebeef5;
-    border-radius: 8px;
-    background: #fafafa;
+    padding: 14px 18px;
+    border: 1px solid #f0f0f0;
+    border-radius: 10px;
+    background: #ffffff;
     font-size: 14px;
-    color: #606266;
-    transition: all 0.2s;
+    color: #444;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
   }
 
-  /* 自动高亮正确答案 */
+  /* 正确选项样式：柔和的绿色 */
   .q-option-item.is-correct {
-    background: #f0f9eb;
-    border-color: #67c23a;
-    color: #67c23a;
-    font-weight: bold;
+    background: #f6ffed;
+    border-color: #b7eb8f;
+    color: #52c41a;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(82, 196, 26, 0.1);
   }
 
-  /* 如果是错题，自动标红用户选错的答案 */
+  /* 错误选项样式：柔和的红色 */
   .q-option-item.is-error {
-    background: #fef0f0;
-    border-color: #f56c6c;
-    color: #f56c6c;
+    background: #fff1f0;
+    border-color: #ffa39e;
+    color: #f5222d;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(245, 34, 45, 0.1);
   }
+
+  /* 解析区域：灰底卡片化处理 */
   .q-analysis {
-    margin-top: 15px;
-    padding-top: 18px;
-    border-top: 1px dashed #ebeef5;
-  }
-  .ans-row {
-    margin-bottom: 8px;
-    font-size: 14px;
-  }
-  .correct-ans { color: #67c23a; }
-  .user-ans { color: #f56c6c; }
-
-  /*  题目详情弹窗  */
-  .q-analysis {
-    margin-top: 15px;
-    padding-top: 18px;
-    border-top: 1px dashed #ebeef5;
-  }
-
-  .ans-row {
-    margin-bottom: 12px; /* 增加行间距 */
-    font-size: 14px;
-  }
-
-/* 给解析加一个浅灰色背景框 */
-  .analysis-info {
-    margin-top: 15px;
+    margin-top: 20px;
+    padding: 20px;
     background: #f8f9fa;
-    padding: 12px;
-    border-radius: 6px;
+    border-radius: 12px;
+    border: 1px solid #edf2f7;
+  }
+
+  .ans-row {
+    margin-bottom: 12px;
+    font-size: 14px;
+    display: flex;
+    align-items: baseline;
+  }
+
+  .ans-row:last-child {
+    margin-bottom: 0;
   }
 
   .analysis-label {
-    font-weight: bold;
+    font-weight: 700;
     color: #3478e5;
-    margin-bottom: 6px;
+    margin-right: 8px;
+    flex-shrink: 0;
   }
 
   .analysis-text {
-    line-height: 1.6;
+    line-height: 1.7;
     color: #555;
     white-space: pre-wrap;
   }
 
-  .correct-ans { color: #67c23a; font-weight: bold; }
-  .user-ans { color: #f56c6c; font-weight: bold; }
+  .correct-ans {
+    color: #52c41a;
+    font-weight: 600;
+  }
+
+  .user-ans {
+    color: #f5222d;
+    font-weight: 600;
+  }
+
+  /* 底部按钮居中且加宽 */
+  :deep(.el-dialog__footer) {
+    text-align: center;
+    padding-bottom: 24px;
+  }
+
+  :deep(.el-dialog__footer .el-button) {
+    padding: 10px 40px;
+    border-radius: 8px;
+  }
 </style>

@@ -17,4 +17,5 @@ public interface PracticeRecordService extends IService<PracticeRecord> {
     List<Map<String, Object>> getErrorRecords(Integer userId);
     List<SubjectCoverageDTO> getSubjectCoverage(Integer userId);
     List<Map<String, Object>> getYearlyStats(Integer userId);
+    List<Map<String, Object>> getHistoryRecords(Integer userId);
 }

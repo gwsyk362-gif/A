@@ -26,7 +26,10 @@ public class PracticeRecordServiceimpl extends ServiceImpl<PracticeRecordMapper,
     private QuestionMapper questionMapper;
 
     @Autowired
+
     private UserSubjectScoreMapper userSubjectScoreMapper;
+    @Autowired
+    private PracticeRecordMapper practiceRecordMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -115,4 +118,9 @@ public class PracticeRecordServiceimpl extends ServiceImpl<PracticeRecordMapper,
 
     @Override
     public List<SubjectCoverageDTO> getSubjectCoverage(Integer userId) {return baseMapper.getSubjectCoverage(userId);}
+
+    @Override
+    public List<Map<String, Object>> getHistoryRecords(Integer userId) {
+        return practiceRecordMapper.getHistoryRecords(userId);
+    }
 }

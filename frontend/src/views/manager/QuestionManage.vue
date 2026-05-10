@@ -1,8 +1,8 @@
 <template>
   <el-card shadow="never">
     <div class="tool-bar">
-      <el-button type="primary" icon="Plus" @click="openDialog()">新增题目</el-button>
       <el-button type="default" icon="Search" @click="toggleSearchBar">搜索</el-button>
+      <el-button type="primary" icon="Plus" @click="openDialog()">新增题目</el-button>
     </div>
 
     <!-- 搜索卡片 -->
@@ -342,6 +342,7 @@
 <style scoped>
   .tool-bar {
     display: flex;
+    justify-content: space-between;
     gap: 10px;
     margin-bottom: 15px;
   }

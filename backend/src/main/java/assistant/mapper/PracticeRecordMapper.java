@@ -58,4 +58,13 @@ public interface PracticeRecordMapper extends BaseMapper<PracticeRecord> {
             "GROUP BY s.sub_id, s.sub_name")
     List<SubjectCoverageDTO> getSubjectCoverage(@Param("userId") Integer userId);
 
+    //做题历史
+    @Select("SELECT q.ques_id as quesId, q.ques_content as quesContent, q.ques_options as quesOptions, " +
+            "q.ques_answer as quesAnswer, q.ques_analysis as quesAnalysis, " +
+            "r.rec_user_answer as recUserAnswer, r.rec_is_correct as recIsCorrect, r.rec_time as recTime " +
+            "FROM practice_records r " +
+            "JOIN questions q ON r.rec_ques_id = q.ques_id " +
+            "WHERE r.rec_user_id = #{userId} " +
+            "ORDER BY r.rec_time DESC")
+    List<Map<String, Object>> getHistoryRecords(@Param("userId") Integer userId);
 }

@@ -56,4 +56,9 @@ public class PracticeRecordController {
         return ResponseEntity.ok(practiceRecordService.getSubjectCoverage(userId));
     }
 
+    @GetMapping("/history")
+    public ResponseEntity<?> getHistoryRecords(@RequestParam Integer userId) {
+        return ResponseEntity.ok(practiceRecordService.getHistoryRecords(userId));
+    }
+
 }
