@@ -12,7 +12,7 @@ public class FavoriteVideo {
     @TableId(value = "fav_id", type = IdType.AUTO)
     private Integer favId;
 
-    private Integer favUserId;    // 对应 fv_user_id
-    private Integer favVidsId;     // 对应 fv_vid_id
+    private Integer favUserId;
+    private Integer favVidsId;
     private LocalDateTime favCreateTime;
 }

@@ -747,6 +747,7 @@
   .question-card-detail {
     padding: 10px 5px;
   }
+
   .q-title {
     font-size: 16px;
     font-weight: 600;
@@ -754,6 +755,7 @@
     line-height: 1.6;
     color: #18191c;
   }
+
   .q-tag {
     display: inline-block;
     background: #eef4ff;
@@ -765,12 +767,14 @@
     font-weight: normal;
     vertical-align: text-bottom;
   }
+
   .q-options {
     display: flex;
     flex-direction: column;
     gap: 12px;
     margin-bottom: 24px;
   }
+
   .q-option-item {
     padding: 12px 16px;
     border: 1px solid #ebeef5;
@@ -780,6 +784,7 @@
     color: #606266;
     transition: all 0.2s;
   }
+
   /* 自动高亮正确答案 */
   .q-option-item.is-correct {
     background: #f0f9eb;
@@ -787,6 +792,7 @@
     color: #67c23a;
     font-weight: bold;
   }
+
   /* 如果是错题，自动标红用户选错的答案 */
   .q-option-item.is-error {
     background: #fef0f0;
@@ -805,7 +811,7 @@
   .correct-ans { color: #67c23a; }
   .user-ans { color: #f56c6c; }
 
-  /* === 题目详情弹窗中的解析样式扩展 === */
+  /*  题目详情弹窗  */
   .q-analysis {
     margin-top: 15px;
     padding-top: 18px;
@@ -817,9 +823,10 @@
     font-size: 14px;
   }
 
+/* 给解析加一个浅灰色背景框 */
   .analysis-info {
     margin-top: 15px;
-    background: #f8f9fa; /* 给解析加一个浅灰色背景框 */
+    background: #f8f9fa;
     padding: 12px;
     border-radius: 6px;
   }
@@ -833,7 +840,7 @@
   .analysis-text {
     line-height: 1.6;
     color: #555;
-    white-space: pre-wrap; /* 保证换行符生效 */
+    white-space: pre-wrap;
   }
 
   .correct-ans { color: #67c23a; font-weight: bold; }

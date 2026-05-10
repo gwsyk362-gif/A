@@ -12,7 +12,7 @@ public class FavoriteQuestion {
     @TableId(value = "fav_id", type = IdType.AUTO)
     private Integer favId;
 
-    private Integer favUserId;   // 对应 fav_user_id
-    private Integer favQuesId;   // 对应 fav_ques_id
+    private Integer favUserId;
+    private Integer favQuesId;
     private LocalDateTime favCreateTime;
 }

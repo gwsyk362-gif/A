@@ -76,7 +76,6 @@
   }
 
   .header-top {
-    /* 移除 max-width 或者将其设为 100% 以便内容能撑满左右 */
     padding: 0 24px;
     display: flex;
     align-items: center;
@@ -87,7 +86,7 @@
   .header-left {
     display: flex;
     align-items: center;
-    flex-shrink: 0; /* 防止被搜索框挤压 */
+    flex-shrink: 0;
   }
 
   .user-avatar-wrapper {
@@ -129,7 +128,7 @@
   .search-bar-container {
     flex: 1;
     display: flex;
-    justify-content: center; /* 让搜索框在剩余空间中居中 */
+    justify-content: center;
     padding: 0 40px;
   }
 
@@ -154,7 +153,7 @@
     padding: 0 20px 0 42px;
     background-color: #f1f2f3;
     border: 1px solid transparent;
-    border-radius: 20px; /* 胶囊形状 */
+    border-radius: 20px;
     font-size: 14px;
     outline: none;
     transition: all 0.3s;

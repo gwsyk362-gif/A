@@ -14,4 +14,7 @@ public class User {
     private Long username;  //八位
     private String password;
     private String nickname;
+    private String role;
+
+    private Integer status;
 }

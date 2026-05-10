@@ -10,9 +10,9 @@
           <el-input
             v-model.number="form.username"
             type="text"
-            maxlength="8"
-            show-word-limit
-            placeholder="请输入8位账号"
+            :maxlength="isLogin ? 20 : 8"
+            :show-word-limit="!isLogin"
+            :placeholder="isLogin ? '请输入数字账号' : '请输入8位数字账号'"
             @input="handleUsernameInput"
           />
         </el-form-item>
@@ -47,9 +47,8 @@
 
 <script setup>
   import { ref, reactive } from 'vue'
-  import { useRouter } from 'vue-router' // 引入路由
+  import { useRouter } from 'vue-router'
   import axios from 'axios'
-  import { ElForm, ElFormItem, ElInput, ElButton, ElLink } from 'element-plus'
 
   const router = useRouter()
   const isLogin = ref(true)
@@ -60,13 +59,21 @@
     nickname: ''
   })
 
+  // 只能输入数字
   const handleUsernameInput = (value) => {
     form.username = value.replace(/[^\d]/g, '');
   };
 
   const handleSubmit = async () => {
-    if (String(form.username).length !== 8) {
-      alert("账号必须是8位数字");
+    // 注册时，强制要求必须是8位数字
+    if (!isLogin.value && String(form.username).length !== 8) {
+      alert("注册时账号必须是8位数字");
+      return;
+    }
+
+    // 登录
+    if (isLogin.value && !form.username) {
+      alert("请输入账号");
       return;
     }
 
@@ -77,19 +84,32 @@
     };
 
     try {
-    if (isLogin.value) {
-      const res = await axios.post('http://localhost:8080/api/users/login', payload);
+        if (isLogin.value) {
+          const res = await axios.post('http://localhost:8080/api/users/login', payload);
 
-      if (res.data && typeof res.data === 'object') {
-        localStorage.setItem('currentUser', JSON.stringify(res.data));
-        router.push('/main');
-      } else {
-        alert("账号或密码错误");
-      }
-    }else {
+          // 检查返回数据是否为用户对象
+          if (res.data && typeof res.data === 'object') {
+            if (res.data.status === 0) {
+              alert('该账号已被封禁，无法登录');
+              return;
+            }
+
+            // 登录成功，正常存储并跳转
+            localStorage.setItem('currentUser', JSON.stringify(res.data));
+
+            if (res.data.role === 'admin') {
+              router.push('/manager');
+            } else {
+              router.push('/main');
+            }
+          } else {
+            alert('账号或密码错误');
+          }
+        }else {
         const res = await axios.post('http://localhost:8080/api/users/register', payload);
         if (res.data === "Success") {
           alert("注册成功！请登录");
+          form.password = '';
           isLogin.value = true;
         } else {
           alert("注册失败：" + res.data);
@@ -103,36 +123,36 @@
 </script>
 
 <style scoped>
-  .login-container
-   { height: 100vh;
-   display: flex;
-   justify-content: center;
+  .login-container {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
     align-items: center;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    }
+  }
 
-  .login-box
-  { width: 400px;
-  padding: 40px;
-   background: white;
+  .login-box {
+    width: 400px;
+    padding: 40px;
+    background: white;
     border-radius: 12px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-     }
+  }
 
-  .header
-   { text-align: center;
-   margin-bottom: 30px;
-   }
+  .header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
 
-  .actions
-  { display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-top: 20px;
-   }
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+  }
 
-  .main-btn
-  { width: 100%;
-   height: 40px;
-    }
+  .main-btn {
+    width: 100%;
+    height: 40px;
+  }
 </style>
