@@ -11,5 +11,5 @@ public interface VideoResourceFind extends IService<VideoResource> {
     List<VideoResource> searchVideos(String keyword);
 
     // 管理端分页查询（包含观看量，支持排序）
-    com.baomidou.mybatisplus.core.metadata.IPage<VideoResource> getManagePage(int page, int size, String sortField, String sortOrder);
+    com.baomidou.mybatisplus.core.metadata.IPage<VideoResource> getManagePage(int page, int size, String sortField, String sortOrder, String keyword);
 }

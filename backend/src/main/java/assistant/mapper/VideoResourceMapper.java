@@ -25,6 +25,11 @@ public interface VideoResourceMapper extends BaseMapper<VideoResource> {
             "   FROM video_progress " +
             "   GROUP BY prog_vid_id " +
             ") p ON v.vid_id = p.prog_vid_id " +
+            "<where>" +
+            "   <if test='keyword != null and keyword != \"\"'> " +
+            "       v.vid_title LIKE CONCAT('%', #{keyword}, '%') " +
+            "   </if>" +
+            "</where>" +
             "ORDER BY " +
             "   <choose>" +
             "       <when test='sortField == \"viewCount\"'> viewCount ${sortOrder} </when>" +
@@ -33,5 +38,6 @@ public interface VideoResourceMapper extends BaseMapper<VideoResource> {
             "</script>")
     IPage<VideoResource> selectManagePage(Page<VideoResource> page,
                                           @Param("sortField") String sortField,
-                                          @Param("sortOrder") String sortOrder);
+                                          @Param("sortOrder") String sortOrder,
+                                          @Param("keyword") String keyword);
 }

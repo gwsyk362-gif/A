@@ -1,7 +1,18 @@
 <template>
   <el-card shadow="never">
     <div class="tool-bar">
-      <span class="tip-text">视频热度排行</span>
+      <el-input
+        v-model="searchKeyword"
+        placeholder="搜索视频标题..."
+        style="width: 300px"
+        clearable
+        @clear="fetchVideoList"
+        @keyup.enter="fetchVideoList"
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
       <el-button type="primary" icon="VideoCamera" @click="openVideoDialog()">上传视频资源</el-button>
     </div>
 
@@ -153,7 +164,6 @@
   import { ref, onMounted } from 'vue';
   import axios from 'axios';
   import { ElMessage, ElMessageBox } from 'element-plus';
-  import { Plus } from '@element-plus/icons-vue';
 
   const videoList = ref([]);
   const loading = ref(false);
@@ -161,6 +171,7 @@
   const currentPage = ref(1);
   const pageSize = ref(10);
   const subjectList = ref([]);
+  const searchKeyword = ref('');
 
   const sortField = ref('viewCount');
   const sortOrder = ref('desc');
@@ -187,7 +198,8 @@
           page: currentPage.value,
           size: pageSize.value,
           sortField: sortField.value,
-          sortOrder: sortOrder.value
+          sortOrder: sortOrder.value,
+          keyword: searchKeyword.value
         }
       });
       videoList.value = res.data.records || res.data;

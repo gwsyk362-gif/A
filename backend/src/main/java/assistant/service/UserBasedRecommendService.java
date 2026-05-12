@@ -28,17 +28,18 @@ public class UserBasedRecommendService {
     @Autowired
     private UserSubjectScoreMapper userSubjectScoreMapper;
 
-    /**
-     * 基于多目标特征融合的智能推荐逻辑 (含冷启动防御)
-     */
-    public List<Question> recommendQuestions(Integer targetUserId, int recommendCount, Integer subjectId, String kp) {
+
+    public List<Question> recommendQuestions(Integer targetUserId, int recommendCount, Integer subjectId, String kp, String keyword) {
 
         System.out.println(">>> 推荐方法被触发了！");
-        // --- 1. 召回阶段 (Recall)：获取候选题目池 ---
+        // 1. 根据科目和知识点查所有题目
         QueryWrapper<Question> qw = new QueryWrapper<>();
         qw.eq("ques_sub_id", subjectId);
         if (kp != null && !kp.trim().isEmpty()) {
             qw.eq("ques_kp", kp);
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            qw.like("ques_content", keyword);
         }
         List<Question> candidateQuestions = questionMapper.selectList(qw);
 
@@ -46,17 +47,17 @@ public class UserBasedRecommendService {
             return new ArrayList<>();
         }
 
-        // --- 2. 准备用户数据 ---
-        // 2.1 获取用户当前的科目能力分 (如果没有数据，默认为 1500)
+        // 2. 准备用户数据
+        // 获取用户当前的科目能力分
         UserSubjectScore uss = userSubjectScoreMapper.selectOne(
                 new QueryWrapper<UserSubjectScore>().eq("user_id", targetUserId).eq("sub_id", subjectId)
         );
         double targetUserScore = (uss != null && uss.getEloScore() != null) ? uss.getEloScore() : 1500.0;
 
-        // 2.2 获取全局答题记录用于计算 CF 和历史情况
+        //获取全局答题记录用于计算 CF 和历史情况
         List<PracticeRecord> allRecords = practiceRecordMapper.selectList(null);
 
-        // 2.3 整理目标用户的历史答题记录 (题目ID -> 最新一条记录)，用于计算遗忘曲线
+        //整理用户的答题记录 ，用于计算遗忘曲线
         Map<Integer, PracticeRecord> targetUserHistory = new HashMap<>();
         for (PracticeRecord rec : allRecords) {
             if (rec.getRecUserId().equals(targetUserId)) {
@@ -68,39 +69,37 @@ public class UserBasedRecommendService {
             }
         }
 
-        // ✨ 2.4 冷启动防御机制
+        // 用户做题表为空 冷启动机制
         if (targetUserHistory.isEmpty()) {
             System.out.println("用户 " + targetUserId + " 处于冷启动阶段，启动兜底推荐策略。");
             Set<Integer> validQuesIds = null;
-            // 如果传了具体知识点，提取出 ID 集合供冷启动方法使用
             if (kp != null && !kp.trim().isEmpty()) {
                 validQuesIds = candidateQuestions.stream().map(Question::getQuesId).collect(Collectors.toSet());
             }
             return recommendByPopularity(subjectId, recommendCount, validQuesIds);
         }
 
-        // 2.5 计算目标用户与其他用户的 Pearson 相似度 (复用你原来的协同过滤逻辑)
+        //计算Pearson 相似度
         Map<Integer, Double> userSimilarities = calculateAllUserSimilarities(targetUserId, allRecords);
 
 
-        // --- 3. 排序阶段 (Ranking)：多目标加权打分 ---
+        //3. 排序
         List<QuestionScoreVO> scoredQuestions = new ArrayList<>();
 
         for (Question q : candidateQuestions) {
             double finalScore = 0.0;
             int quesId = q.getQuesId();
-            double quesScore = (q.getQuesScore() != null) ? q.getQuesScore() : 1500.0; // 题目难度分
+            double quesScore = q.getQuesScore(); // 题目难度分
 
-            // ====== 目标A：ZPD 难度匹配度 (权重 40%) ======
-            // 计算期望胜率
+            // ZPD 40
             double expectedWinRate = 1.0 / (1.0 + Math.pow(10, (quesScore - targetUserScore) / 400.0));
-            // 假设 0.55 是最佳挑战胜率 (既不太难也不太简单)，计算偏差
+            // 假设 0.55 是最佳挑战胜率 计算偏差
             double zpdScore = 1.0 - Math.abs(expectedWinRate - 0.45);;
             if (zpdScore < 0) zpdScore = 0;
             finalScore += 0.40 * zpdScore + Math.random() * 0.05;
 
 
-            // ====== 目标B：协同过滤个性化偏好 (权重 30%) ======
+            // 协同过滤 30
             double cfScore = 0.0;
             double simSum = 0.0;
             for (PracticeRecord rec : allRecords) {
@@ -113,11 +112,11 @@ public class UserBasedRecommendService {
                     }
                 }
             }
-            if (simSum > 0) cfScore = cfScore / simSum; // 加权平均得出该题的推荐度
+            if (simSum > 0) cfScore = cfScore / simSum;
             finalScore += 0.30 * cfScore;
 
 
-            // ====== 目标C：艾宾浩斯遗忘曲线 (权重 30%) ======
+            //遗忘曲线 30
             double memoryScore = 0.5; // 对于没做过的新题，给一个中等的复习得分
             PracticeRecord lastRecord = targetUserHistory.get(quesId);
 
@@ -131,23 +130,16 @@ public class UserBasedRecommendService {
                     // 遗忘得越多 (保留率越低)，越急需复习，得分越高
                     memoryScore = 1.0 - retentionRate;
                 } else {
-                    // 如果已经做对过了，为了防止重复刷简单题，给予极低的分数
                     memoryScore = 0.1;
                 }
             }
             finalScore += 0.30 * memoryScore;
 
             finalScore += (quesId % 100) * 0.0001;
-            // 将最终得分压入集合
             scoredQuestions.add(new QuestionScoreVO(q.getQuesId(), finalScore));
-            // 仅打印前 5 个候选者的得分详情
-            if (scoredQuestions.size() < 5) {
-                System.out.println(String.format("ID:%d | 总分:%.3f | ZPD:%.3f | CF:%.3f | Mem:%.3f | 用户分:%.1f | 题分:%.1f",
-                        quesId, finalScore, zpdScore, cfScore, memoryScore, targetUserScore, quesScore));
-            }
         }
 
-        // --- 4. 倒序排列并返回 ID ---
+        // 倒序排列并返回 ID
         List<Integer> topIds = scoredQuestions.stream()
                 .sorted(Comparator.comparingDouble(QuestionScoreVO::getFinalScore).reversed())
                 .limit(recommendCount)
@@ -158,16 +150,14 @@ public class UserBasedRecommendService {
             return new ArrayList<>();
         }
 
-        // --- 5.获取实体对象并排序 ---
+        // 获取实体对象并排序
         List<Question> resultQuestions = questionMapper.selectBatchIds(topIds);
 
         resultQuestions.sort(Comparator.comparingInt(q -> topIds.indexOf(q.getQuesId())));
         return resultQuestions;
     }
 
-    /**
-     * 冷启动兜底推荐：按热度或随机
-     */
+    //冷启动
     private List<Question> recommendByPopularity(Integer subjectId, int count, Set<Integer> validQuesIds) {
         List<Integer> ids;
         if (validQuesIds != null) {
@@ -180,19 +170,15 @@ public class UserBasedRecommendService {
                 ids = questionMapper.selectRandomIdsBySubject(subjectId, count);
             }
         }
-
         if (ids.isEmpty()) return new ArrayList<>();
 
-        // 将 ID 转换为实体
         List<Question> questions = questionMapper.selectBatchIds(ids);
         List<Integer> finalIds = ids;
         questions.sort(Comparator.comparingInt(q -> finalIds.indexOf(q.getQuesId())));
         return questions;
     }
 
-    /**
-     * 计算目标用户与系统内所有其他用户的皮尔逊相关系数
-     */
+    //pearson相关系数
     private Map<Integer, Double> calculateAllUserSimilarities(Integer targetUserId, List<PracticeRecord> allRecords) {
         Map<Integer, Map<Integer, Double>> userScores = new HashMap<>();
         for (PracticeRecord rec : allRecords) {
@@ -211,9 +197,7 @@ public class UserBasedRecommendService {
         return userSimilarities;
     }
 
-    /**
-     * 基础皮尔逊计算工具
-     */
+    //pearson系数
     private double calculatePearson(Map<Integer, Double> v1, Map<Integer, Double> v2) {
         Set<Integer> commonKeys = new HashSet<>(v1.keySet());
         commonKeys.retainAll(v2.keySet());

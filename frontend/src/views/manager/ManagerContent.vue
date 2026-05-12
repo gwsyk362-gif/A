@@ -30,6 +30,10 @@
         <VideoManage />
       </div>
 
+      <div v-else-if="activeTab === 'articles'">
+        <ArticleManage />
+      </div>
+
       <div v-else>
         <el-empty description="正在加载模块或模块不存在..."></el-empty>
       </div>
@@ -43,6 +47,7 @@
   import UserManage from './UserManage.vue';
   import QuestionManage from './QuestionManage.vue';
   import VideoManage from './VideoManage.vue';
+  import ArticleManage from './ArticleManage.vue';
 
   const props = defineProps(['adminInfo']);
 
@@ -52,7 +57,8 @@
     { id: 'dashboard', name: '📊 数据大盘' },
     { id: 'users', name: '👥 用户管理' },
     { id: 'questions', name: '📝 题库管理' },
-    { id: 'videos', name: '🎬 视频管理' }
+    { id: 'videos', name: '🎬 视频管理' },
+    { id: 'articles', name: '📄 图文管理' }
   ];
 </script>
 

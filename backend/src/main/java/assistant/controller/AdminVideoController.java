@@ -23,9 +23,10 @@ public class AdminVideoController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(defaultValue = "viewCount") String sortField,
-            @RequestParam(defaultValue = "DESC") String sortOrder
+            @RequestParam(defaultValue = "DESC") String sortOrder,
+            @RequestParam(required = false) String keyword
     ) {
-        IPage<VideoResource> result = videoResourceFind.getManagePage(page, size, sortField, sortOrder);
+        IPage<VideoResource> result = videoResourceFind.getManagePage(page, size, sortField, sortOrder, keyword);
 
         Map<String, Object> response = new HashMap<>();
         response.put("records", result.getRecords());

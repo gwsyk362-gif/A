@@ -20,10 +20,11 @@ public class RecommendController {
             @RequestParam Integer userId,
             @RequestParam Integer subjectId,
             @RequestParam(defaultValue = "5") Integer count,
-            @RequestParam(required = false) String kp) {
+            @RequestParam(required = false) String kp,
+            @RequestParam(required = false) String keyword) {
 
         try {
-            List<Question> recommendedQuestions = recommendService.recommendQuestions(userId, count, subjectId, kp);
+            List<Question> recommendedQuestions = recommendService.recommendQuestions(userId, count, subjectId, kp, keyword);
             return ResponseEntity.ok(recommendedQuestions);
         } catch (Exception e) {
             e.printStackTrace();

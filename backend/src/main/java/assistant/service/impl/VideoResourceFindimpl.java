@@ -31,7 +31,7 @@ public class VideoResourceFindimpl extends ServiceImpl<VideoResourceMapper, Vide
     }
 
     @Override
-    public IPage<VideoResource> getManagePage(int page, int size, String sortField, String sortOrder) {
+    public IPage<VideoResource> getManagePage(int page, int size, String sortField, String sortOrder, String keyword) {
         // 参数白名单校验
         if (!"viewCount".equals(sortField) && !"vidTitle".equals(sortField)) {
             sortField = "vidId";
@@ -41,6 +41,6 @@ public class VideoResourceFindimpl extends ServiceImpl<VideoResourceMapper, Vide
         }
 
         Page<VideoResource> pageObj = new Page<>(page, size);
-        return videoResourceMapper.selectManagePage(pageObj, sortField, sortOrder.toUpperCase());
+        return videoResourceMapper.selectManagePage(pageObj, sortField, sortOrder.toUpperCase(), keyword);
     }
 }

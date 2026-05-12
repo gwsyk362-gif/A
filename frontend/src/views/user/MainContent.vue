@@ -14,66 +14,72 @@
     </nav>
 
     <div v-if="activeTab === 'resources'" class="view-section">
-      <h3>📚 推荐学习资源</h3>
       <VideoResources :search-query="searchQuery" />
     </div>
 
+    <div v-else-if="activeTab === 'textResources'" class="view-section">
+      <TextResources :search-query="searchQuery" />
+    </div>
+
     <div v-else-if="activeTab === 'paper'" class="view-section">
-      <GenerateView :currentUser="user" mode="paper" @paper-generated="handlePaperGenerated" />
-      <hr v-if="currentPaper.length > 0" class="divider" />
-      <ExamView v-if="currentPaper.length > 0" :questions="currentPaper" @reset="handleReset" />
+      <PaperView />
     </div>
 
     <div v-else-if="activeTab === 'practice'" class="view-section">
-      <GenerateView :currentUser="user" mode="practice" @recommend-fetched="handleRecommendFetched" />
-      <hr v-if="recommendedQuestions.length > 0" class="divider" />
-      <ExamView v-if="recommendedQuestions.length > 0" :questions="recommendedQuestions" @reset="recommendedQuestions = []" />
+      <PracticeView />
     </div>
   </div>
 </template>
 
 <script setup>
-  import { ref } from 'vue';
-  import GenerateView from './GenerateView.vue';
-  import ExamView from './ExamView.vue';
-  import VideoResources from './VideoResources.vue';
+import { ref } from 'vue';
+import VideoResources from './VideoResources.vue';
+import TextResources from './TextResources.vue';
+import PaperView from './PaperView.vue';
+import PracticeView from './PracticeView.vue';
 
-  // 接收父组件 MainView 传来的 user 对象和搜索词
-  const props = defineProps(['user', 'searchQuery']);
+defineProps(['user', 'searchQuery']);
 
-  const activeTab = ref("resources");
-  const currentPaper = ref([]);
-  const recommendedQuestions = ref([]);
+const activeTab = ref('resources');
 
-  const tabs = [
-    { id: 'resources', name: '学习资源' },
-    { id: 'paper', name: '做卷分区' },
-    { id: 'practice', name: '做题分区' }
-  ];
-
-  const handlePaperGenerated = (data) => { currentPaper.value = data; };
-  const handleRecommendFetched = (data) => { recommendedQuestions.value = data; };
-  const handleReset = () => { currentPaper.value = []; };
+const tabs = [
+  { id: 'resources', name: '视频学习资源' },
+  { id: 'textResources', name: '图文学习资源' },
+  { id: 'paper', name: '全真模拟' },
+  { id: 'practice', name: '训练大厅' }
+];
 </script>
 
 <style scoped>
-  .category-nav {
-
- display: flex;
-
- padding: 0 20px;
-
- gap: 32px;
-
- height: 46px;
-
- align-items: center;
-
- justify-content: center;
-
- }
-   .category-nav { display: flex; gap: 30px; margin-bottom: 20px; border-bottom: 1px solid #f2f2f2; }
-   .nav-item { padding: 10px 0; cursor: pointer; position: relative; }
-   .nav-item.active { color: #fb7299; font-weight: bold; }
-   .active-line { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 20px; height: 3px; background: #fb7299; }
+.category-nav {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f2f2f2;
+  padding: 0 20px;
+  justify-content: center;
+}
+.nav-item {
+  padding: 10px 0;
+  cursor: pointer;
+  position: relative;
+  font-size: 15px;
+  color: #61666d;
+  transition: color 0.2s;
+}
+.nav-item:hover { color: #18191c; }
+.nav-item.active { color: #fb7299; font-weight: 700; }
+.active-line {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+  background: #fb7299;
+}
+.view-section {
+  padding: 0;
+}
 </style>

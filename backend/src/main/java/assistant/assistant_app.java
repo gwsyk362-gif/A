@@ -6,7 +6,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @org.mybatis.spring.annotation.MapperScan("assistant.mapper")
 
 @SpringBootApplication
-@MapperScan("assistant.mapper")
 public class assistant_app {
 
     public static void main(String[] args) {

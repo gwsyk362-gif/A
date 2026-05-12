@@ -1,3 +1,4 @@
+
 <template>
   <div v-if="questions && questions.length > 0" class="exam-container">
 
@@ -89,6 +90,7 @@
 <script setup>
   import { computed, ref, watch } from 'vue';
   import axios from 'axios';
+  import { getCurrentUserId, formatOptions, getOptionLetter } from '../../utils/common.js';
 
   const props = defineProps({
     questions: { type: Array, default: () => [] }
@@ -96,18 +98,11 @@
 
   const emit = defineEmits(['reset']);
 
-  // 判断是否为练习模式
   const isPracticeMode = computed(() => {
     return props.questions.length > 0 && props.questions[0].isPractice === true;
   });
 
   const favoriteIds = ref([]);
-
-  const getCurrentUserId = () => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (!savedUser) return null;
-    return JSON.parse(savedUser).userId;
-  };
 
   const loadFavorites = async () => {
     const userId = getCurrentUserId();
@@ -197,15 +192,6 @@ const submitPaper = async () => {
     }
   };
 
-  const formatOptions = (optionsStr) => {
-    if (!optionsStr) return [];
-    const cleanStr = optionsStr.replace(/\s+/g, ' ').trim() + " ";
-    const regex = /[A-D][\.．、\s][\s\S]*?(?=[A-D][\.．、\s]|$)/g;
-    const matches = cleanStr.match(regex);
-    return matches ? matches.map(o => o.trim()).filter(o => o.length > 2) : [];
-  };
-
-  const getOptionLetter = (optText) => optText.trim().charAt(0).toUpperCase();
 
   const selectAnswer = (question, opt) => {
     if (isPracticeMode.value && question.submitted) return;
@@ -331,15 +317,16 @@ const submitPaper = async () => {
 
   /* 组卷样式 ====== */
   .score-banner {
-    background-color: #eef4ff;
-    color: #3478e5;
-    padding: 15px 20px;
-    border-radius: 8px;
-    font-size: 1.2em;
-    font-weight: bold;
+    background: linear-gradient(135deg, #eef4ff 0%, #e8f0fe 100%);
+    color: #285fb3;
+    padding: 18px 24px;
+    border-radius: 12px;
+    font-size: 1.15em;
+    font-weight: 700;
     text-align: center;
     margin-bottom: 20px;
     border: 1px solid #d1e3fa;
+    letter-spacing: 0.5px;
   }
   .paper-list {
     display: flex;
@@ -350,8 +337,12 @@ const submitPaper = async () => {
     background: #fff;
     padding: 24px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    border: 1px solid #eaeaea;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid #f0f1f2;
+    transition: box-shadow 0.2s;
+  }
+  .paper-question-item:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
   }
 
   /* 卡片样式 ====== */

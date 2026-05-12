@@ -1,250 +1,310 @@
 // VideoResources.vue
 <template>
   <div class="video-resources">
-    <div v-if="videoList.length === 0" class="empty-placeholder">
-      😢 没有找到相关视频资源
-    </div>
-    <div class="video-grid">
-      <div
-        v-for="video in videoList"
-        :key="video.vidId"  class="video-card"
-        @click="openVideo(video)"
-      >
-        <div class="video-cover">
-          <img
-            v-if="video.vidCoverUrl"
-            :src="'http://localhost:8080' + video.vidCoverUrl"
-            class="real-cover"
-          />
-          <span v-else class="cover-text">
-    {{ video.vidTitle ? video.vidTitle.charAt(0) : '' }}
-  </span>
 
-          <span class="play-icon">▶️</span>
-        </div>
-        <div class="video-info">
-          <div class="video-header-row">
-            <h4 class="video-title">{{ video.vidTitle }}</h4>
-            <button
-              class="fav-btn"
-              :class="{ 'is-fav': isFavorited(video.vidId) }"
-              @click.stop="toggleFavorite(video)"
-              title="收藏视频"
-            >
-              {{ isFavorited(video.vidId) ? '★' : '☆' }}
-            </button>
-          </div>
-          <p class="video-desc">{{ video.vidDescription }}</p>
-        </div>
-      </div>
-    </div>
+    <div class="hot-carousel-section" v-if="topVideos.length > 0 && !searchQuery">
+      <h3 class="section-title">🔥 热门推荐</h3>
+      <el-carousel :interval="4000" type="card" height="260px" v-loading="loadingHot">
+        <el-carousel-item v-for="video in topVideos" :key="video.vidId">
+          <div class="carousel-card" @click="openVideo(video)">
+            <img
+              v-if="video.vidCoverUrl"
+              :src="'http://localhost:8080' + video.vidCoverUrl"
+              class="carousel-img"
+            />
+            <div v-else class="carousel-placeholder">
+              {{ video.vidTitle ? video.vidTitle.charAt(0) : '' }}
+            </div>
 
-    <!-- 视频播放模态框 -->
-    <div v-if="showModal" class="modal-overlay" @click="closeModal">
-      <div class="modal-container" @click.stop>
-        <div class="modal-header">
-          <h3>{{ currentVideo?.vidTitle }}</h3>
-          <button class="close-btn" @click="closeModal">✕</button>
-        </div>
-        <div class="modal-body">
-          <div class="video-wrapper">
-            <iframe
-              v-if="currentVideo?.vidUrl"
-              :src="currentVideo.vidUrl"
-              frameborder="0"
-              allowfullscreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            ></iframe>
-            <div v-else class="no-video">
-              ⚠️ 视频链接暂不可用
+            <div class="carousel-info">
+              <h3>{{ video.vidTitle }}</h3>
+              <p class="view-count">▶ 播放量：{{ video.viewCount || 0 }}</p>
             </div>
           </div>
-          <p class="video-description">{{ currentVideo?.vidDescription }}</p>
+        </el-carousel-item>
+      </el-carousel>
+    </div>
+
+    <div class="all-resources-section">
+      <h3 class="section-title" v-if="!searchQuery">📚 全部学习资源</h3>
+      <h3 class="section-title" v-else>🔍 搜索结果</h3>
+
+      <div v-if="videoList.length === 0" class="empty-placeholder">
+        😢 没有找到相关视频资源
+      </div>
+      <div class="video-grid">
+        <div
+          v-for="video in videoList"
+          :key="video.vidId"  class="video-card"
+          @click="openVideo(video)"
+        >
+          <div class="video-cover">
+            <img
+              v-if="video.vidCoverUrl"
+              :src="'http://localhost:8080' + video.vidCoverUrl"
+              class="real-cover"
+            />
+            <span v-else class="cover-text">
+              {{ video.vidTitle ? video.vidTitle.charAt(0) : '' }}
+            </span>
+            <span class="play-icon">▶️</span>
+          </div>
+          <div class="video-info">
+            <div class="video-header-row">
+              <h4 class="video-title">{{ video.vidTitle }}</h4>
+              <button
+                class="fav-btn"
+                :class="{ 'is-fav': isFavorited(video.vidId) }"
+                @click.stop="toggleFavorite(video)"
+                title="收藏视频"
+              >
+                {{ isFavorited(video.vidId) ? '★' : '☆' }}
+              </button>
+            </div>
+            <p class="video-desc">{{ video.vidDescription }}</p>
+          </div>
         </div>
       </div>
     </div>
+
+    <VideoPlayer
+      :video="currentVideo"
+      :visible="showModal"
+      @close="closeModal"
+      @progress="saveProgressToBackend"
+    />
   </div>
 </template>
 
 <script setup>
-  import {  computed, ref, onMounted, watch } from 'vue';
-   import axios from 'axios';
-   import { ElMessage } from 'element-plus';
+  import { computed, ref, onMounted, watch } from 'vue';
+  import axios from 'axios';
+  import { ElMessage } from 'element-plus';
+  import { getCurrentUserId } from '../../utils/common.js';
+  import VideoPlayer from '../../components/VideoPlayer.vue';
 
-   const props = defineProps({
-     searchQuery: {
-       type: String,
-       default: ''
-     }
-   });
+  const props = defineProps({
+    searchQuery: {
+      type: String,
+      default: ''
+    }
+  });
 
-   const videoList = ref([]);
-   const loading = ref(false);
+  const videoList = ref([]);
+  const loading = ref(false);
 
-   // === 1. 收藏相关响应式状态 ===
-  // 获取当前用户ID
-  const getCurrentUserId = () => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (!savedUser) return null;
-    const user = JSON.parse(savedUser);
-    return user.userId;
+  // 新增：热门视频状态
+  const topVideos = ref([]);
+  const loadingHot = ref(false);
+
+  // === 1. 收藏相关响应式状态 ===
+  const favoritedIds = ref([]);
+
+  const isFavorited = (vidId) => {
+    return favoritedIds.value.includes(vidId);
   };
 
-   const favoritedIds = ref([]);
+  // === 2. 核心网络请求 ===
 
-   // 判断视频是否被收藏
-   const isFavorited = (vidId) => {
-     return favoritedIds.value.includes(vidId);
-   };
+  // 新增：获取热度最高的前5个视频
+  const fetchHotVideos = async () => {
+    loadingHot.value = true;
+    try {
+      const res = await axios.get('http://localhost:8080/api/admin/videos/list', {
+        params: {
+          page: 1,
+          size: 5,
+          sortField: 'viewCount',
+          sortOrder: 'desc'
+        }
+      });
+      // 兼容后端的分页格式或直接数组格式
+      topVideos.value = res.data.records || res.data;
+    } catch (error) {
+      console.error("加载热门视频失败", error);
+    } finally {
+      loadingHot.value = false;
+    }
+  };
 
-   // === 2. 核心网络请求 ===
-   // 获取视频列表
-   const fetchVideos = async () => {
-     try {
-       const response = await axios.get('/api/videos/list', {
-         params: { keyword: props.searchQuery }
-       });
-       videoList.value = response.data;
-     } catch (error) {
-       console.error("加载视频失败", error);
-     }
-   };
+  // 获取视频列表
+  const fetchVideos = async () => {
+    try {
+      const response = await axios.get('/api/videos/list', {
+        params: { keyword: props.searchQuery }
+      });
+      videoList.value = response.data;
+    } catch (error) {
+      console.error("加载视频失败", error);
+    }
+  };
 
-   // 获取用户收藏的视频ID列表
-const fetchFavoriteIds = async () => {
-     const userId = getCurrentUserId(); // 1. 调用函数获取 userId
-     if (userId) { // 2. 判断 userId 是否存在
-       try {
-         const res = await axios.get(`http://localhost:8080/favoriteVideos/ids?userId=${userId}`);
-         favoritedIds.value = res.data;
-       } catch (e) {
-         console.error("加载收藏状态失败", e);
-       }
-     }
-   };
+  const fetchFavoriteIds = async () => {
+    const userId = getCurrentUserId();
+    if (userId) {
+      try {
+        const res = await axios.get(`http://localhost:8080/favoriteVideos/ids?userId=${userId}`);
+        favoritedIds.value = res.data;
+      } catch (e) {
+        console.error("加载收藏状态失败", e);
+      }
+    }
+  };
 
-   // 切换收藏/取消收藏
-   const toggleFavorite = async (video) => {
-     const userId = getCurrentUserId(); // 1. 调用函数获取 userId
+  const toggleFavorite = async (video) => {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      ElMessage.warning("请先登录后再操作");
+      return;
+    }
 
-     // 2. 判断是否登录
-     if (!userId) {
-       ElMessage.warning("请先登录后再操作");
-       return;
-     }
+    const isFav = isFavorited(video.vidId);
+    const url = isFav ? '/favoriteVideos/remove' : '/favoriteVideos/add';
 
-     const isFav = isFavorited(video.vidId);
-     const url = isFav ? '/favoriteVideos/remove' : '/favoriteVideos/add';
+    try {
+      const res = await axios.post(`http://localhost:8080${url}`, {
+        favUserId: userId,
+        favVidsId: video.vidId
+      });
 
-     try {
-       const res = await axios.post(`http://localhost:8080${url}`, {
-         favUserId: userId, // 3. 这里使用刚刚获取到的 userId
-         favVidsId: video.vidId
-       });
+      if (res.data === 'success') {
+        if (isFav) {
+          favoritedIds.value = favoritedIds.value.filter(id => id !== video.vidId);
+          ElMessage.success("已取消收藏");
+        } else {
+          favoritedIds.value.push(video.vidId);
+          ElMessage.success("收藏成功");
+        }
+      } else if (res.data === 'already exists') {
+        ElMessage.warning("您已经收藏过该视频了");
+      } else {
+        ElMessage.error("操作失败，请稍后再试");
+      }
+    } catch (e) {
+      console.error("后台报错详细信息:", e);
+      ElMessage.error("网络请求失败，请按 F12 查看控制台报错");
+    }
+  };
 
-       if (res.data === 'success') {
-         if (isFav) {
-           favoritedIds.value = favoritedIds.value.filter(id => id !== video.vidId);
-           ElMessage.success("已取消收藏");
-         } else {
-           favoritedIds.value.push(video.vidId);
-           ElMessage.success("收藏成功");
-         }
-       } else if (res.data === 'already exists') {
-         ElMessage.warning("您已经收藏过该视频了");
-       } else {
-         ElMessage.error("操作失败，请稍后再试");
-       }
-     } catch (e) {
-       console.error("后台报错详细信息:", e);
-       ElMessage.error("网络请求失败，请按 F12 查看控制台报错");
-     }
-   };
+  // === 3. 生命周期与监听 ===
+  onMounted(() => {
+    fetchHotVideos();    // 加载走马灯热门视频
+    fetchVideos();       // 加载视频大厅
+    fetchFavoriteIds();  // 加载当前用户的收藏点亮状态
+  });
 
-   // === 3. 生命周期与监听 ===
-   onMounted(() => {
-     fetchVideos();       // 加载视频大厅
-     fetchFavoriteIds();  // 加载当前用户的收藏点亮状态
-   });
+  watch(() => props.searchQuery, () => {
+    fetchVideos();
+  });
 
-   watch(() => props.searchQuery, () => {
-     fetchVideos();
-   });
+ // === 4. 视频播放模态框 ===
+  const showModal = ref(false);
+  const currentVideo = ref(null);
 
-  // === 4. 模态框与进度记录逻辑 ===
-   const showModal = ref(false);
-   const currentVideo = ref(null);
+  const openVideo = (video) => {
+    currentVideo.value = video;
+    showModal.value = true;
+  };
 
-   // 新增：进度相关的状态
-   const currentPosition = ref(0); // 记录观看了多少秒
-   let watchTimer = null; // 计时器
+  const closeModal = () => {
+    showModal.value = false;
+    currentVideo.value = null;
+  };
 
-   // 打开视频弹窗
-   const openVideo = (video) => {
-     currentVideo.value = video;
-     showModal.value = true;
-     document.body.style.overflow = 'hidden';
-
-     // 每次打开新视频，重置观看秒数，并启动计时器
-     currentPosition.value = 0;
-     startWatchTimer();
-   };
-
-   // 关闭视频弹窗
-   const closeModal = () => {
-     // 关闭前，先保存一次进度到后端
-     saveProgressToBackend();
-
-     // 停止计时器，清理状态
-     stopWatchTimer();
-     showModal.value = false;
-     currentVideo.value = null;
-     document.body.style.overflow = '';
-   };
-
-   // 启动计时器：每秒钟将观看时间 +1
-   const startWatchTimer = () => {
-     if (watchTimer) clearInterval(watchTimer);
-     watchTimer = setInterval(() => {
-       currentPosition.value += 1;
-     }, 1000);
-   };
-
-   // 停止计时器
-   const stopWatchTimer = () => {
-     if (watchTimer) {
-       clearInterval(watchTimer);
-       watchTimer = null;
-     }
-   };
-
-   // 核心逻辑：将进度保存到后端
-   const saveProgressToBackend = async () => {
-     const userId = getCurrentUserId();
-     // 如果没登录，或者没看视频（秒数为0），就不保存
-     if (!userId || !currentVideo.value || currentPosition.value === 0) return;
-
-     try {
-       await axios.post('http://localhost:8080/videoProgress/save', {
-         progUserId: userId,
-         progVidId: currentVideo.value.vidId,
-         progLastPosition: currentPosition.value,
-         // 因为 iframe 无法知道视频是否真的放完了，这里统一传 0（未完结）
-         // 这样这个视频就会一直出现在"继续学习"的列表里，直到用户手动取消收藏或其他操作
-         progIsFinished: 0
-       });
-       console.log(`已保存进度：${currentPosition.value}秒`);
-     } catch (error) {
-       console.error("保存视频进度失败", error);
-     }
-   };
+  const saveProgressToBackend = async ({ vidId, position }) => {
+    const userId = getCurrentUserId();
+    if (!userId || position === 0) return;
+    try {
+      await axios.post('http://localhost:8080/videoProgress/save', {
+        progUserId: userId,
+        progVidId: vidId,
+        progLastPosition: position,
+        progIsFinished: 0
+      });
+    } catch (error) {
+      console.error("保存视频进度失败", error);
+    }
+  };
 </script>
 
 <style scoped>
   .video-resources {
-    margin-top: 16px;
+    margin-top: 10px;
   }
 
+  /* === 新增：标题与走马灯样式 === */
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #18191c;
+    margin: 10px 0 16px 0;
+    padding-left: 10px;
+    border-left: 4px solid #fb7299; /* B站粉色点缀 */
+  }
+
+  .hot-carousel-section {
+    margin-bottom: 40px;
+  }
+
+  .carousel-card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+  }
+
+  .carousel-card:hover {
+    transform: translateY(-4px);
+  }
+
+  .carousel-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .carousel-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #fb7299 0%, #ff9e8b 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 72px;
+    color: white;
+    font-weight: bold;
+  }
+
+  .carousel-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 50px 20px 20px;
+    background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+    color: white;
+    box-sizing: border-box;
+  }
+
+  .carousel-info h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .carousel-info .view-count {
+    margin: 0;
+    font-size: 14px;
+    color: #ffd700;
+  }
+
+  /* === 以下是原有的样式，保持不变 === */
   .video-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -292,7 +352,7 @@ const fetchFavoriteIds = async () => {
     font-size: 36px;
     opacity: 0.8;
     transition: opacity 0.2s;
-    z-index: 2; /* 确保显示在图片上方 */
+    z-index: 2;
   }
 
   .video-card:hover .play-icon {
@@ -341,174 +401,45 @@ const fetchFavoriteIds = async () => {
     font-size: 14px;
   }
 
-  /* 模态框样式 */
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    backdrop-filter: blur(4px);
-  }
-
-  .modal-container {
-    background: white;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 880px;
-    max-height: 85vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 20px 35px rgba(0, 0, 0, 0.2);
-    animation: modalFadeIn 0.2s ease;
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid #e9ecef;
-  }
-
-  .modal-header h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #18191c;
-  }
-
-  .close-btn {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #9499a0;
-    transition: color 0.2s;
-    line-height: 1;
-    padding: 0;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-  }
-
-  .close-btn:hover {
-    color: #fb7299;
-    background: #f1f2f3;
-  }
-
-  .modal-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-  }
-
-  .video-wrapper {
-    position: relative;
-    padding-bottom: 56.25%; /* 16:9 比例 */
-    height: 0;
-    background: #000;
-    border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .video-wrapper iframe,
-  .video-wrapper video {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
-  }
-
-  .video-vidDescription {
-    margin-top: 16px;
-    font-size: 14px;
-    color: #4e555e;
-    line-height: 1.5;
-  }
-
-  .no-video {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #ccc;
-    font-size: 14px;
-  }
-
-  @keyframes modalFadeIn {
-    from {
-      opacity: 0;
-      transform: scale(0.96);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  /* 响应式调整 */
   @media (max-width: 768px) {
     .video-grid {
       grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       gap: 12px;
     }
-
-    .modal-container {
-      width: 95%;
-      max-height: 90vh;
-    }
-
-    .modal-header h3 {
-      font-size: 16px;
-    }
   }
 
-  /* 让标题和星星在一行 */
-.video-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 8px;
-}
+  .video-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
 
-.video-title {
-  /* 覆盖原有的 margin，由父容器控制 */
-  margin: 0;
-  flex: 1;
-}
+  .video-title {
+    margin: 0;
+    flex: 1;
+  }
 
-/* 你提供的收藏按钮样式 */
-.fav-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.3em;
-  color: #ccc;
-  padding: 0;
-  line-height: 1;
-  transition: color 0.2s, transform 0.1s;
-  flex-shrink: 0; /* 防止星星被挤压 */
-}
+  .fav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.3em;
+    color: #ccc;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s, transform 0.1s;
+    flex-shrink: 0;
+  }
 
-.fav-btn:hover {
-  transform: scale(1.2);
-  color: #f1c40f;
-}
+  .fav-btn:hover {
+    transform: scale(1.2);
+    color: #f1c40f;
+  }
 
-.fav-btn.is-fav {
-  color: #f1c40f;
-  text-shadow: 0 0 5px rgba(241, 196, 15, 0.3);
-}
+  .fav-btn.is-fav {
+    color: #f1c40f;
+    text-shadow: 0 0 5px rgba(241, 196, 15, 0.3);
+  }
 </style>

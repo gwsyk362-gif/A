@@ -15,7 +15,6 @@
       </el-col>
     </el-row>
 
-    <!-- 饼图 -->
     <div class="chart-group">
       <el-row>
         <el-col :span="24">
@@ -26,7 +25,6 @@
         </el-col>
       </el-row>
 
-      <!-- 折线图1：近7天平均正确率 -->
       <el-row>
         <el-col :span="24">
           <el-card shadow="hover" style="margin-bottom: 20px;">
@@ -41,7 +39,6 @@
         </el-col>
       </el-row>
 
-      <!-- 折线图2：近7天日活趋势 -->
       <el-row>
         <el-col :span="24">
           <el-card shadow="hover">
@@ -57,7 +54,6 @@
       </el-row>
     </div>
 
-    <!-- 弹窗1：近30天正确率 -->
     <el-dialog
       v-model="accuracyDialogVisible"
       title="近30天平均正确率"
@@ -67,7 +63,6 @@
       <div ref="monthlyAccuracyChartRef" style="height: 400px; width: 100%;"></div>
     </el-dialog>
 
-    <!-- 弹窗2：近30天日活 -->
     <el-dialog
       v-model="activeDialogVisible"
       title="近30天日活人数"
@@ -83,7 +78,6 @@
   import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
   import * as echarts from 'echarts';
   import axios from 'axios';
-  import { User, Document, VideoCamera, TrendCharts } from '@element-plus/icons-vue';
 
   const panelData = ref([
     { title: '系统总用户', value: 0, icon: 'User', color: '#40c9c6' },

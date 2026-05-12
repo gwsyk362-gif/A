@@ -35,7 +35,6 @@ public class PaperController {
 
         System.out.println("Generating personalized paper for userId: " + userId + ", subId: " + subId + ", count: " + count);
 
-        // 调用我们在 paperGenerating (Service层) 新加的方法
         List<Question> result = paperGenerating.generatePersonalizedPaper(userId, subId, count);
 
         System.out.println("Generated " + result.size() + " personalized questions for user " + userId);
@@ -47,9 +46,10 @@ public class PaperController {
             @RequestParam Integer userId,
             @RequestParam Integer subjectId,
             @RequestParam(required = false) String kp,
-            @RequestParam(defaultValue = "5") int count) {
+            @RequestParam(defaultValue = "5") int count,
+            @RequestParam(required = false) String keyword) {
 
-        return userBasedRecommendService.recommendQuestions(userId, count, subjectId, kp);
+        return userBasedRecommendService.recommendQuestions(userId, count, subjectId, kp, keyword);
     }
 
     //获取知识点列表
