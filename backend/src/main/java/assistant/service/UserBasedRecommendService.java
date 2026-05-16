@@ -205,7 +205,7 @@ public class UserBasedRecommendService {
         }
         avg1 /= commonKeys.size();
         avg2 /= commonKeys.size();
-
+        ;
         double numerator = 0.0, sumSq1 = 0.0, sumSq2 = 0.0;
         for (int key : commonKeys) {
             double diff1 = v1.get(key) - avg1;
