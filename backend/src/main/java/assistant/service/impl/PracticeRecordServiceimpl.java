@@ -8,6 +8,7 @@ import assistant.mapper.PracticeRecordMapper;
 import assistant.mapper.QuestionMapper;
 import assistant.mapper.UserSubjectScoreMapper;
 import assistant.service.PracticeRecordService;
+import assistant.service.UserMemoryStateService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.apache.ibatis.annotations.Param;
@@ -24,12 +25,12 @@ public class PracticeRecordServiceimpl extends ServiceImpl<PracticeRecordMapper,
 
     @Autowired
     private QuestionMapper questionMapper;
-
     @Autowired
-
     private UserSubjectScoreMapper userSubjectScoreMapper;
     @Autowired
     private PracticeRecordMapper practiceRecordMapper;
+    @Autowired
+    private UserMemoryStateService userMemoryStateService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -92,6 +93,12 @@ public class PracticeRecordServiceimpl extends ServiceImpl<PracticeRecordMapper,
             // 写回题目表
             question.setQuesScore(newDifficulty);
             questionMapper.updateById(question);
+
+            userMemoryStateService.updateOrInitSM2State(
+                    record.getRecUserId(),
+                    record.getRecQuesId(),
+                    record.getRecIsCorrect()
+            );
         }
         return true;
     }
