@@ -192,7 +192,7 @@ public class UserBasedRecommendService {
         return userSimilarities;
     }
 
-    // 严格皮尔逊相关系数算法实现
+    // 皮尔逊相关系数算法实现
     private double calculatePearson(Map<Integer, Double> v1, Map<Integer, Double> v2) {
         Set<Integer> commonKeys = new HashSet<>(v1.keySet());
         commonKeys.retainAll(v2.keySet());
